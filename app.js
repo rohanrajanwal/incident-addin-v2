@@ -31,6 +31,7 @@ const app = {
     corrections: []
   },
   _sceneVideoBlob: null,
+  _selectedExceptionEventId: null,
 
   // ---- Geotab Add-in Lifecycle ----
   initializeAddin() {
@@ -60,6 +61,7 @@ const app = {
     this.setupOfflineDetection();
     this.loadSavedProgress();
     this.initDamageZoneClicks();
+    this.loadIncidents();
   },
 
   onFocus() {
@@ -72,6 +74,165 @@ const app = {
         this.setEl('driverInitials', firstName[0] + (driver.name.split(' ')[1] || 'X')[0]);
       }
     }
+    // Refresh incidents when app comes into focus (may have new events)
+    if (this.currentScreen === 'incidents') {
+      this.loadIncidents();
+    }
+  },
+
+  // ---- Incidents List ----
+  async loadIncidents() {
+    const currentList = document.getElementById('currentIncidentsList');
+    const pastHeader = document.getElementById('pastIncidentsHeader');
+    const pastSubtitle = document.getElementById('pastIncidentsSubtitle');
+    const pastList = document.getElementById('pastIncidentsList');
+    if (!currentList) return;
+
+    // Show loading
+    currentList.innerHTML = `
+      <div style="text-align:center;padding:28px 0">
+        <div class="ai-spinner"></div>
+        <p style="margin-top:12px;font-size:13px;color:var(--text-secondary)">Loading incidents…</p>
+      </div>`;
+
+    if (!this.api || this.api._isMock) {
+      this.renderFallbackIncidents(currentList, pastHeader, pastSubtitle, pastList);
+      return;
+    }
+
+    try {
+      const deviceId = this.state?.device?.id;
+      if (!deviceId) {
+        this.renderFallbackIncidents(currentList, pastHeader, pastSubtitle, pastList);
+        return;
+      }
+
+      const now = new Date();
+      const thirtyDaysAgo = new Date(now - 30 * 24 * 60 * 60 * 1000);
+
+      // Fetch exception events for this device in the last 30 days
+      const [events, existingReports] = await Promise.all([
+        this.api.call('Get', {
+          typeName: 'ExceptionEvent',
+          search: {
+            deviceSearch: { id: deviceId },
+            fromDate: thirtyDaysAgo.toISOString(),
+            toDate: now.toISOString()
+          }
+        }),
+        this.api.call('Get', {
+          typeName: 'AddInData',
+          search: { addInId: 'aIncidentReport001' }
+        }).catch(() => [])
+      ]);
+
+      // Build set of already-reported exception event IDs
+      const reportedIds = new Set(
+        (existingReports || [])
+          .map(r => r.details?.exceptionEventId)
+          .filter(Boolean)
+      );
+
+      // Sort newest first
+      const sorted = (events || []).sort((a, b) =>
+        new Date(b.activeFrom) - new Date(a.activeFrom)
+      );
+
+      const unreported = sorted.filter(e => !reportedIds.has(e.id));
+      const reported = sorted.filter(e => reportedIds.has(e.id));
+
+      this.renderIncidentsList(unreported, reported, currentList, pastHeader, pastSubtitle, pastList);
+    } catch (err) {
+      console.warn('[Incidents] Failed to load from API:', err);
+      this.renderFallbackIncidents(currentList, pastHeader, pastSubtitle, pastList);
+    }
+  },
+
+  renderIncidentsList(unreported, reported, currentList, pastHeader, pastSubtitle, pastList) {
+    currentList.innerHTML = '';
+
+    if (unreported.length === 0) {
+      currentList.innerHTML = `
+        <div style="text-align:center;padding:28px 16px;color:var(--text-secondary)">
+          <p style="font-size:14px">No open incidents found in the last 30 days.</p>
+        </div>`;
+    } else {
+      unreported.forEach(event => {
+        currentList.appendChild(this.buildIncidentCard(event, false));
+      });
+    }
+
+    if (reported.length > 0) {
+      pastHeader.style.display = '';
+      pastSubtitle.style.display = '';
+      pastList.innerHTML = '';
+      reported.forEach(event => {
+        pastList.appendChild(this.buildIncidentCard(event, true));
+      });
+    } else {
+      pastHeader.style.display = 'none';
+      pastSubtitle.style.display = 'none';
+      pastList.innerHTML = '';
+    }
+  },
+
+  buildIncidentCard(event, isCompleted) {
+    const ruleName = event.rule?.name || 'Incident';
+    const date = new Date(event.activeFrom);
+    const dateStr = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    const timeStr = date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+    const vehicleName = event.device?.name || this.state?.device?.name || '';
+
+    const badge = isCompleted
+      ? '<span class="badge completed">Completed</span>'
+      : '<span class="badge new">New</span>';
+
+    const svgIcon = `<svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>`;
+
+    const calSvg = `<svg class="meta-svg" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>`;
+    const truckSvg = `<svg class="meta-svg" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>`;
+
+    const continueBtn = isCompleted ? '' : `
+      <hr class="card-divider">
+      <button class="btn btn-primary" style="width:100%" onclick="app.startReport('${event.id}')">Continue</button>`;
+
+    const div = document.createElement('div');
+    div.className = 'incident-card';
+    div.innerHTML = `
+      <div class="card-header">
+        <div class="card-icon collision">${svgIcon}</div>
+        <h3 style="flex:1">${this._escHtml(ruleName)}</h3>
+        ${badge}
+      </div>
+      <p class="description">Exception event detected by Geotab</p>
+      <p class="meta-line">${calSvg} ${dateStr} at ${timeStr}</p>
+      ${vehicleName ? `<p class="meta-line">${truckSvg} ${this._escHtml(vehicleName)}</p>` : ''}
+      ${continueBtn}`;
+    return div;
+  },
+
+  renderFallbackIncidents(currentList, pastHeader, pastSubtitle, pastList) {
+    currentList.innerHTML = `
+      <div style="text-align:center;padding:28px 16px;color:var(--text-secondary)">
+        <p style="font-size:14px;margin-bottom:12px">Could not load incidents from database.</p>
+        <button class="btn btn-primary" style="max-width:220px;margin:0 auto" onclick="app.startReport(null)">Start New Report</button>
+      </div>`;
+    pastHeader.style.display = 'none';
+    pastSubtitle.style.display = 'none';
+    pastList.innerHTML = '';
+  },
+
+  startReport(exceptionEventId) {
+    this._selectedExceptionEventId = exceptionEventId;
+    this.goTo('safety');
+  },
+
+  _escHtml(str) {
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
   },
 
   // ---- Navigation ----
@@ -1094,7 +1255,7 @@ const app = {
     const driverId = this.state.driver?.id || null;
     const dateTime = new Date().toISOString();
     const server = this.state.server || 'my.geotab.com';
-    const credentials = this._getApiCredentials();
+    const credentials = await this._getApiCredentials();
 
     // 1. Find the relevant exception event
     this.setEl('submitStatus', 'Locating incident event…');
@@ -1202,10 +1363,13 @@ const app = {
   // ---- Submission helpers ----
 
   async getExceptionEventId() {
-    // Some Drive SDK versions expose the exception event context via state
+    // 1. Use the event the user selected from the incidents list
+    if (this._selectedExceptionEventId) return this._selectedExceptionEventId;
+
+    // 2. Some Drive SDK versions inject the exception event via state
     if (this.state?.exceptionEvent?.id) return this.state.exceptionEvent.id;
 
-    // Fall back: query the most recent collision exception for this device (last 2 hours)
+    // 3. Fall back: query the most recent exception for this device (last 2 hours)
     try {
       const now = new Date();
       const twoHoursAgo = new Date(now - 2 * 60 * 60 * 1000);
@@ -1314,11 +1478,29 @@ const app = {
     return entityId;
   },
 
-  _getApiCredentials() {
-    // Try common locations the Geotab SDK stores session credentials
+  async _getApiCredentials() {
+    // 1. Use the documented api.getSession() if available (standard Geotab JS API)
+    if (typeof this.api?.getSession === 'function') {
+      return new Promise((resolve) => {
+        try {
+          this.api.getSession((creds) => resolve(creds || null));
+        } catch (e) {
+          resolve(null);
+        }
+      });
+    }
+    // 2. Fall back to internal property inspection
     for (const src of [this.api, this.api?._api, this.api?._rpc]) {
       if (src?._credentials) return src._credentials;
       if (src?.credentials) return src.credentials;
+    }
+    // 3. Build from state if available (Drive SDK sometimes exposes these)
+    if (this.state?.sessionId) {
+      return {
+        sessionId: this.state.sessionId,
+        userName: this.state.userName,
+        database: this.state.database
+      };
     }
     return null;
   },
