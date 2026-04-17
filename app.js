@@ -519,12 +519,17 @@ const app = {
 
   // ---- 360° Scene Video ----
   captureSceneVideo() {
-    // Use accept="video/*" without capture so iOS presents its own native action sheet
-    // ("Take Video" / "Photo Library" / "Browse"). This lets iOS manage camera/mic
-    // permissions through its own flow rather than us forcing the camera open directly.
+    // NOTE: Live video recording is disabled. Geotab Drive's iOS app is missing
+    // NSMicrophoneUsageDescription in its Info.plist — iOS terminates the process
+    // the moment anything requests microphone access (recording, capture, getUserMedia).
+    // This is confirmed: Drive does not appear in Settings → Privacy → Microphone.
+    // Re-enable capture="environment" here once Geotab adds the key and ships an update.
+    //
+    // For now: open the video library picker only (selecting existing videos needs no mic).
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = 'video/*';
+    // No capture attribute — library picker only, no camera, no mic access, no crash.
     input.style.cssText = 'position:fixed;top:-9999px;left:-9999px;opacity:0;';
     input.onchange = (e) => {
       const file = e.target.files[0];
