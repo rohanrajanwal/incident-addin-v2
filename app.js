@@ -519,26 +519,20 @@ const app = {
 
   // ---- 360° Scene Video ----
   captureSceneVideo() {
-    // accept="video/*" without capture opens the iOS video library (PHPickerViewController
-    // on iOS 14+) rather than launching the camera. The camera with capture="environment"
-    // crashes WKWebView when the user slides to video mode.
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = 'video/*';
-    input.style.cssText = 'position:fixed;top:-9999px;left:-9999px;opacity:0;';
-    input.onchange = (e) => {
-      const file = e.target.files[0];
-      if (file) {
-        this._sceneVideoBlob = file;
-        this.reportData.sceneVideo = { name: file.name, size: file.size };
-        document.getElementById('sceneVideoSlot').style.display = 'none';
-        document.getElementById('sceneVideoPreview').style.display = 'flex';
-        this.setEl('sceneVideoName', file.name);
-      }
-      if (input.parentNode) input.parentNode.removeChild(input);
+    const onFile = (file) => {
+      this._sceneVideoBlob = file;
+      this.reportData.sceneVideo = { name: file.name, size: file.size };
+      document.getElementById('sceneVideoSlot').style.display = 'none';
+      document.getElementById('sceneVideoPreview').style.display = 'flex';
+      this.setEl('sceneVideoName', file.name);
     };
-    document.body.appendChild(input);
-    input.click();
+    // "Take a Video" opens camera directly in video mode (capture="environment" on
+    // accept="video/*") — avoids the crash that occurs when sliding photo→video.
+    // "Choose from Videos" opens the library picker (no capture) for an already-recorded clip.
+    this._showVideoMenu(
+      () => this._videoInput(true,  onFile),
+      () => this._videoInput(false, onFile)
+    );
   },
 
   removeSceneVideo() {
@@ -678,7 +672,7 @@ const app = {
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = 'video/*';
-    // No capture — avoids WKWebView crash when camera opens in video mode.
+    input.capture = 'environment'; // opens camera directly in video mode
     input.style.cssText = 'position:fixed;top:-9999px;left:-9999px;opacity:0;';
     input.onchange = (e) => {
       const file = e.target.files[0];
@@ -735,20 +729,25 @@ const app = {
   },
 
   _imageInput(useCamera, onFile) {
-    // capture="environment" opens the camera with a Photo/Video toggle — sliding to Video
-    // crashes WKWebView on iOS (Geotab Drive). Always use the system photo library instead.
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = 'image/*';
+    // capture="environment" opens the camera directly in photo mode — works in Geotab Drive.
+    // Do NOT let users slide to video from here (video mode needs mic, which may not be
+    // permitted). For video, use _videoInput which opens the camera directly in video mode.
+    if (useCamera) input.capture = 'environment';
     input.onchange = (e) => { if (e.target.files[0]) onFile(e.target.files[0]); };
     input.click();
   },
 
   _videoInput(useCamera, onFile) {
-    // No capture attribute — opens video library (PHPickerViewController), not the camera.
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = 'video/*';
+    // capture="environment" with accept="video/*" opens the camera directly in video mode.
+    // This avoids the crash caused by sliding from photo mode to video mode mid-session,
+    // because iOS handles mic permission upfront when opening in video mode directly.
+    if (useCamera) input.capture = 'environment';
     input.onchange = (e) => { if (e.target.files[0]) onFile(e.target.files[0]); };
     input.click();
   },
