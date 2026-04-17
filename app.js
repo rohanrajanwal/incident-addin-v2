@@ -1235,61 +1235,16 @@ const app = {
           `${closest.latitude.toFixed(4)}°, ${closest.longitude.toFixed(4)}°`;
       }
 
-      // Fetch historical weather from Open-Meteo (free, no key required)
-      try {
-        const lat  = closest.latitude.toFixed(4);
-        const lon  = closest.longitude.toFixed(4);
-        const date = eventTime.toISOString().split('T')[0];
-        const hour = eventTime.getUTCHours();
-        const daysAgo = Math.floor((Date.now() - eventTime.getTime()) / 86400000);
-
-        const base = daysAgo >= 5
-          ? 'https://archive-api.open-meteo.com/v1/era5'
-          : 'https://api.open-meteo.com/v1/forecast';
-        const pastParam = daysAgo < 5 ? `&past_days=${Math.max(daysAgo + 1, 1)}` : '';
-        const url = `${base}?latitude=${lat}&longitude=${lon}&start_date=${date}&end_date=${date}${pastParam}&hourly=temperature_2m,weathercode&temperature_unit=fahrenheit&timezone=UTC`;
-
-        const resp = await fetch(url);
-        if (resp.ok) {
-          const data = await resp.json();
-          const temp = data.hourly?.temperature_2m?.[hour];
-          const code = data.hourly?.weathercode?.[hour];
-          if (temp !== undefined && code !== undefined) {
-            this.reportData.context.weather        = `${this._wmoToDesc(code)}, ${Math.round(temp)}°F`;
-            this.reportData.context.roadConditions = this._weatherToRoad(code, temp);
-          }
-        }
-      } catch (e) {
-        console.warn('[Context] Weather fetch failed:', e);
-      }
+      // Weather and road conditions are intentionally not fetched here.
+      // External weather APIs (e.g. Open-Meteo) are blocked by Geotab's CSP.
+      // These fields will be populated by AI analysis of scene photos/video.
 
     } catch (err) {
       console.warn('[Context] Failed to fetch event context:', err);
     }
   },
 
-  _wmoToDesc(code) {
-    if (code === 0)                          return 'Clear';
-    if (code <= 3)                           return 'Partly Cloudy';
-    if (code <= 48)                          return 'Foggy';
-    if (code <= 55)                          return 'Drizzle';
-    if (code <= 67)                          return 'Rain';
-    if (code <= 77)                          return 'Snow';
-    if (code <= 82)                          return 'Rain Showers';
-    if (code <= 86)                          return 'Snow Showers';
-    if (code >= 95)                          return 'Thunderstorm';
-    return 'Overcast';
-  },
-
-  _weatherToRoad(code, tempF) {
-    if (code >= 71 && code <= 86)            return 'Icy / Snow-covered';
-    if ((code >= 51 && code <= 67) || (code >= 80 && code <= 82)) return 'Wet';
-    if (code >= 45 && code <= 48)            return 'Reduced Visibility';
-    if (tempF !== undefined && tempF <= 32)  return 'Icy';
-    return 'Dry';
-  },
-
-  populateContextScreen() {
+populateContextScreen() {
     const ctx = this.reportData.context;
 
     // Time
