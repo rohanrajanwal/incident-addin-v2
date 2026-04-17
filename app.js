@@ -519,10 +519,12 @@ const app = {
 
   // ---- 360° Scene Video ----
   captureSceneVideo() {
-    // No accept attribute — opens the Files app on iOS (no camera, no crash).
-    // accept="video/*" tells iOS to offer the camera which crashes Drive's WKWebView.
+    // accept="video/*" without capture opens the iOS video library (PHPickerViewController
+    // on iOS 14+) rather than launching the camera. The camera with capture="environment"
+    // crashes WKWebView when the user slides to video mode.
     const input = document.createElement('input');
     input.type = 'file';
+    input.accept = 'video/*';
     input.style.cssText = 'position:fixed;top:-9999px;left:-9999px;opacity:0;';
     input.onchange = (e) => {
       const file = e.target.files[0];
@@ -676,7 +678,7 @@ const app = {
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = 'video/*';
-    input.capture = 'environment';
+    // No capture — avoids WKWebView crash when camera opens in video mode.
     input.style.cssText = 'position:fixed;top:-9999px;left:-9999px;opacity:0;';
     input.onchange = (e) => {
       const file = e.target.files[0];
@@ -733,19 +735,20 @@ const app = {
   },
 
   _imageInput(useCamera, onFile) {
+    // capture="environment" opens the camera with a Photo/Video toggle — sliding to Video
+    // crashes WKWebView on iOS (Geotab Drive). Always use the system photo library instead.
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = 'image/*';
-    if (useCamera) input.capture = 'environment';
     input.onchange = (e) => { if (e.target.files[0]) onFile(e.target.files[0]); };
     input.click();
   },
 
   _videoInput(useCamera, onFile) {
+    // No capture attribute — opens video library (PHPickerViewController), not the camera.
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = 'video/*';
-    if (useCamera) input.capture = 'environment';
     input.onchange = (e) => { if (e.target.files[0]) onFile(e.target.files[0]); };
     input.click();
   },
