@@ -1,0 +1,1078 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Incident Reporting</title>
+  <link rel="stylesheet" href="styles.css?v=7">
+</head>
+<body>
+
+  <!-- Offline Banner -->
+  <div class="offline-banner" id="offlineBanner">You are offline — data will be saved locally</div>
+
+  <!-- ==================== SCREEN 1: Incidents List ==================== -->
+  <div class="screen active" id="screen-incidents">
+    <h2 class="section-title">Current Incidents</h2>
+    <p class="section-subtitle">Reports that are in progress</p>
+
+    <div class="incident-card">
+      <div class="card-header">
+        <div class="card-icon collision">
+          <svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        </div>
+        <h3 style="flex:1">Collision</h3>
+        <span class="badge new">New</span>
+      </div>
+      <p class="description">Third party collision detected by system</p>
+      <p class="meta-line" id="incidentDate"><svg class="meta-svg" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg> Oct 4, 2025</p>
+      <p class="meta-line" id="incidentLocation"><svg class="meta-svg" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg> Interstate 78, Mile Marker 47</p>
+      <hr class="card-divider">
+      <button class="btn btn-primary" onclick="app.goTo('safety')" style="width:100%">Continue</button>
+    </div>
+
+    <h2 class="section-title" style="margin-top:16px">Past Incidents</h2>
+    <p class="section-subtitle">Completed and closed reports</p>
+
+    <div class="incident-card">
+      <div class="card-header">
+        <div class="card-icon theft">
+          <svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        </div>
+        <h3 style="flex:1">Theft</h3>
+        <span class="badge completed">Completed</span>
+      </div>
+      <p class="description">Cargo theft reported and investigated</p>
+      <p class="meta-line"><svg class="meta-svg" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg> Sep 28, 2025</p>
+      <p class="meta-line"><svg class="meta-svg" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg> Rest Stop, Highway 101</p>
+    </div>
+
+    <div class="incident-card">
+      <div class="card-header">
+        <div class="card-icon minor">
+          <svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        </div>
+        <h3 style="flex:1">Minor Damage</h3>
+        <span class="badge completed">Completed</span>
+      </div>
+      <p class="description">Minor damage to rear bumper during loading</p>
+      <p class="meta-line"><svg class="meta-svg" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg> Sep 16, 2025</p>
+      <p class="meta-line"><svg class="meta-svg" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg> Loading Dock, Warehouse District</p>
+    </div>
+  </div>
+
+  <!-- ==================== SCREEN 3: Safety Check ==================== -->
+  <div class="screen" id="screen-safety">
+    <div class="safety-hero">
+      <div class="shield-circle">
+        <svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+      </div>
+      <h2>Hi <span id="driverFirstName">Lucas</span>,</h2>
+      <p>We understand this is a stressful situation. Your safety is our top priority.</p>
+    </div>
+
+    <div class="step-card">
+      <div class="step-number">1</div>
+      <div class="step-content">
+        <h3>Take a moment to breathe</h3>
+        <p>Ensure you're physically okay and in a safe location. Take a few deep breaths.</p>
+      </div>
+    </div>
+
+    <div class="step-card">
+      <div class="step-number">2</div>
+      <div class="step-content">
+        <h3>Contact your fleet manager</h3>
+        <p>Inform them about the incident so they can provide support and guidance.</p>
+      </div>
+    </div>
+
+    <div class="step-card">
+      <div class="step-number">3</div>
+      <div class="step-content">
+        <h3>Call emergency services</h3>
+        <p>If there are injuries or significant damage, contact 911 immediately.</p>
+      </div>
+    </div>
+
+    <div class="button-footer">
+      <button class="btn btn-secondary" onclick="app.goTo('incidents')">Back</button>
+      <button class="btn btn-primary" onclick="app.goTo('communication')">Continue</button>
+    </div>
+  </div>
+
+  <!-- ==================== SCREEN 4: Communication Guidelines ==================== -->
+  <div class="screen" id="screen-communication">
+    <h2 class="section-title">Communication Guidelines</h2>
+    <p class="section-subtitle">Important information about who you should speak with.</p>
+
+    <div class="guidelines-list">
+      <div class="guideline-card allowed">
+        <div class="guideline-icon check">
+          <svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        </div>
+        <div class="guideline-content">
+          <h3>You can speak with your fleet manager</h3>
+          <p>Your fleet manager is here to support you. Share all details of the incident with them.</p>
+        </div>
+      </div>
+
+      <div class="guideline-card allowed">
+        <div class="guideline-icon check">
+          <svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        </div>
+        <div class="guideline-content">
+          <h3>You can speak with police officers</h3>
+          <p>Provide accurate and honest information to any law enforcement officials at the scene.</p>
+        </div>
+      </div>
+
+      <div class="guideline-card caution">
+        <div class="guideline-icon warn">
+          <svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        </div>
+        <div class="guideline-content">
+          <h3>Limit discussion with third parties</h3>
+          <p>Don't discuss fault or details of the incident with other drivers or witnesses. Simply collect their contact and insurance information.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="info-box">
+      <svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+      <p>Following these guidelines helps protect you and the company during the claims process.</p>
+    </div>
+
+    <div class="button-footer">
+      <button class="btn btn-secondary" onclick="app.goTo('safety')">Back</button>
+      <button class="btn btn-primary" onclick="app.goTo('qualifying')">Continue</button>
+    </div>
+  </div>
+
+  <!-- ==================== SCREEN 5: Qualifying Questions ==================== -->
+  <div class="screen" id="screen-qualifying">
+    <div class="progress-bar">
+      <div class="progress-icon">
+        <svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+      </div>
+      <span>0% Complete</span>
+    </div>
+
+    <h2 class="section-title">Qualifying Questions</h2>
+    <p class="section-subtitle">Please answer the following questions about the collision.</p>
+
+    <div class="question-group">
+      <label>Does the collision involve a third party driver?</label>
+      <div class="toggle-group">
+        <button class="toggle-btn" onclick="app.setAnswer('thirdParty', true, this)">Yes</button>
+        <button class="toggle-btn" onclick="app.setAnswer('thirdParty', false, this)">No</button>
+      </div>
+    </div>
+
+    <div class="question-group" id="atSceneGroup">
+      <label>Is the third party driver at the scene?</label>
+      <div class="toggle-group">
+        <button class="toggle-btn" onclick="app.setAnswer('atScene', true, this)">Yes</button>
+        <button class="toggle-btn" onclick="app.setAnswer('atScene', false, this)">No</button>
+      </div>
+    </div>
+
+    <div class="question-group">
+      <label>Is there any damage to the property?</label>
+      <div class="toggle-group">
+        <button class="toggle-btn" onclick="app.setAnswer('propertyDamage', true, this)">Yes</button>
+        <button class="toggle-btn" onclick="app.setAnswer('propertyDamage', false, this)">No</button>
+      </div>
+    </div>
+
+    <div class="button-footer">
+      <button class="btn btn-secondary" onclick="app.goTo('communication')">Back</button>
+      <button class="btn btn-primary" id="qualifyingContinue" onclick="app.qualifyingContinue()">Continue</button>
+    </div>
+  </div>
+
+  <!-- ==================== SCREEN 6a: Photos — Your Vehicle ==================== -->
+  <div class="screen" id="screen-photos-yours">
+    <div class="progress-bar">
+      <div class="progress-icon">
+        <svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+      </div>
+      <span>20% Complete</span>
+    </div>
+
+    <h2 class="section-title">Capture Photos of Your Vehicle & Scene</h2>
+    <p class="section-subtitle">Take photos of your vehicle damage and the incident scene.</p>
+
+    <div class="photo-grid" id="photoGridYours">
+      <div class="photo-slot" onclick="app.showPhotoMenu('yours',0)">
+        <svg class="camera-icon" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+        <span class="label">Front View</span>
+      </div>
+      <div class="photo-slot" onclick="app.showPhotoMenu('yours',1)">
+        <svg class="camera-icon" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+        <span class="label">Rear View</span>
+      </div>
+      <div class="photo-slot" onclick="app.showPhotoMenu('yours',2)">
+        <svg class="camera-icon" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+        <span class="label">Left Side</span>
+      </div>
+      <div class="photo-slot" onclick="app.showPhotoMenu('yours',3)">
+        <svg class="camera-icon" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+        <span class="label">Right Side</span>
+      </div>
+      <div class="photo-slot" onclick="app.showPhotoMenu('yours',4)">
+        <svg class="camera-icon" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+        <span class="label">Damage Close-up</span>
+      </div>
+    </div>
+
+    <h3 class="subsection-title">360° Scene Video <span style="font-size:11px;font-weight:400;color:var(--text-muted)">(Optional)</span></h3>
+    <p class="section-subtitle" style="margin-bottom:10px">Record or upload a 360° walkthrough of the scene for a complete overview.</p>
+    <div class="document-upload" id="sceneVideoSlot" onclick="app.captureSceneVideo()">
+      <svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
+      <p style="font-weight:600;margin-bottom:3px;font-size:14px">Tap to upload a video</p>
+      <p style="font-size:12px;color:var(--text-muted)">Select a video file from your device</p>
+    </div>
+    <div id="sceneVideoPreview" style="display:none" class="doc-preview">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#2e7d32" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px;flex-shrink:0"><polyline points="20 6 9 17 4 12"/></svg>
+      <span id="sceneVideoName" style="flex:1;font-size:13px;color:var(--success);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Video captured ✓</span>
+      <button class="remove-photo" onclick="event.stopPropagation();app.removeSceneVideo()" style="position:static;width:22px;height:22px;line-height:22px">&times;</button>
+    </div>
+
+    <div id="aiAnalysisStatusYours" style="display:none">
+      <div class="ai-processing">
+        <div class="ai-spinner"></div>
+        <p style="font-weight:600;font-size:14px">Analyzing photos...</p>
+        <p style="color:var(--text-secondary);font-size:13px">AI is identifying damage zones and severity</p>
+      </div>
+    </div>
+
+    <div class="button-footer">
+      <button class="btn btn-secondary" onclick="app.goTo('qualifying')">Back</button>
+      <button class="btn btn-primary" onclick="app.analyzeYoursAndContinue()">Continue</button>
+    </div>
+  </div>
+
+  <!-- ==================== SCREEN 6b: Photos — Third Party Vehicle ==================== -->
+  <div class="screen" id="screen-photos-third">
+    <div class="progress-bar">
+      <div class="progress-icon">
+        <svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+      </div>
+      <span>35% Complete</span>
+    </div>
+
+    <h2 class="section-title">Capture Photos of Third Party Vehicle</h2>
+    <p class="section-subtitle">Take photos of the other driver's vehicle damage.</p>
+
+    <div class="photo-grid" id="photoGridThird">
+      <div class="photo-slot" onclick="app.showPhotoMenu('third',0)">
+        <svg class="camera-icon" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+        <span class="label">Front View</span>
+      </div>
+      <div class="photo-slot" onclick="app.showPhotoMenu('third',1)">
+        <svg class="camera-icon" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+        <span class="label">Rear View</span>
+      </div>
+      <div class="photo-slot" onclick="app.showPhotoMenu('third',2)">
+        <svg class="camera-icon" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+        <span class="label">Left Side</span>
+      </div>
+      <div class="photo-slot" onclick="app.showPhotoMenu('third',3)">
+        <svg class="camera-icon" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+        <span class="label">Right Side</span>
+      </div>
+      <div class="photo-slot" onclick="app.showPhotoMenu('third',4)">
+        <svg class="camera-icon" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+        <span class="label">Damage Close-up</span>
+      </div>
+    </div>
+
+    <div id="aiAnalysisStatusThird" style="display:none">
+      <div class="ai-processing">
+        <div class="ai-spinner"></div>
+        <p style="font-weight:600;font-size:14px">Analyzing photos...</p>
+        <p style="color:var(--text-secondary);font-size:13px">AI is identifying vehicle type and damage</p>
+      </div>
+    </div>
+
+    <div class="button-footer">
+      <button class="btn btn-secondary" onclick="app.goTo('photos-yours')">Back</button>
+      <button class="btn btn-primary" onclick="app.analyzeThirdAndContinue()">Continue</button>
+    </div>
+  </div>
+
+  <!-- ==================== SCREEN 7: Damage Assessment (1st Party) ==================== -->
+  <div class="screen" id="screen-damage-first">
+    <div class="progress-bar">
+      <div class="progress-icon">
+        <svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+      </div>
+      <span>40% Complete</span>
+    </div>
+
+    <h2 class="section-title">Your Vehicle Damage</h2>
+    <p class="section-subtitle">Select damaged areas on your vehicle. <span class="ai-badge">AI Suggested</span></p>
+
+    <div class="damage-diagram">
+      <svg class="vehicle-svg" viewBox="0 0 200 300" style="max-width:220px">
+        <!-- Vehicle body -->
+        <path d="M75 20 C75 15, 78 10, 83 10 L117 10 C122 10, 125 15, 125 20 L125 35 L135 40 L140 45 L145 55 L148 65 L150 75 L150 225 L148 235 L145 245 L140 255 L135 260 L125 265 L125 280 C125 285, 122 290, 117 290 L83 290 C78 290, 75 285, 75 280 L75 265 L65 260 L60 255 L55 245 L52 235 L50 225 L50 75 L52 65 L55 55 L60 45 L65 40 L75 35 Z" fill="#e8e9ea" stroke="#9ca3af" stroke-width="2"/>
+        <!-- Windshield & rear window -->
+        <rect x="80" y="25" width="40" height="15" fill="rgba(59,130,246,0.15)" stroke="#9ca3af" stroke-width="1" rx="3"/>
+        <rect x="80" y="260" width="40" height="15" fill="rgba(59,130,246,0.15)" stroke="#9ca3af" stroke-width="1" rx="3"/>
+        <!-- Side windows -->
+        <rect x="55" y="80" width="12" height="35" fill="rgba(59,130,246,0.15)" stroke="#9ca3af" stroke-width="1" rx="2"/>
+        <rect x="55" y="125" width="12" height="35" fill="rgba(59,130,246,0.15)" stroke="#9ca3af" stroke-width="1" rx="2"/>
+        <rect x="55" y="170" width="12" height="35" fill="rgba(59,130,246,0.15)" stroke="#9ca3af" stroke-width="1" rx="2"/>
+        <rect x="133" y="80" width="12" height="35" fill="rgba(59,130,246,0.15)" stroke="#9ca3af" stroke-width="1" rx="2"/>
+        <rect x="133" y="125" width="12" height="35" fill="rgba(59,130,246,0.15)" stroke="#9ca3af" stroke-width="1" rx="2"/>
+        <rect x="133" y="170" width="12" height="35" fill="rgba(59,130,246,0.15)" stroke="#9ca3af" stroke-width="1" rx="2"/>
+        <!-- Headlights -->
+        <ellipse cx="85" cy="15" rx="6" ry="4" fill="#fbbf24" opacity="0.8"/>
+        <ellipse cx="115" cy="15" rx="6" ry="4" fill="#fbbf24" opacity="0.8"/>
+        <!-- Taillights -->
+        <ellipse cx="85" cy="285" rx="6" ry="4" fill="#ef4444" opacity="0.8"/>
+        <ellipse cx="115" cy="285" rx="6" ry="4" fill="#ef4444" opacity="0.8"/>
+        <!-- Side mirrors -->
+        <rect x="45" y="70" width="8" height="20" fill="#374151" rx="4"/>
+        <rect x="147" y="70" width="8" height="20" fill="#374151" rx="4"/>
+        <rect x="45" y="210" width="8" height="20" fill="#374151" rx="4"/>
+        <rect x="147" y="210" width="8" height="20" fill="#374151" rx="4"/>
+        <!-- Clickable damage zones -->
+        <path class="damage-zone" data-zone="Front Center" d="M75 20 C75 15, 78 10, 83 10 L117 10 C122 10, 125 15, 125 20 L125 35 L135 40 L140 45 L145 55 L148 65 L100 65 L52 65 L55 55 L60 45 L65 40 L75 35 Z" fill="transparent" stroke="transparent" stroke-width="2"/>
+        <path class="damage-zone" data-zone="Front Left" d="M50 65 L52 65 L55 55 L60 45 L65 40 L75 35 L75 50 L70 60 L65 70 L60 80 L55 90 L52 100 L50 110 Z" fill="transparent" stroke="transparent" stroke-width="2"/>
+        <path class="damage-zone" data-zone="Front Right" d="M150 65 L148 65 L145 55 L140 45 L135 40 L125 35 L125 50 L130 60 L135 70 L140 80 L145 90 L148 100 L150 110 Z" fill="transparent" stroke="transparent" stroke-width="2"/>
+        <path class="damage-zone" data-zone="Left Side" d="M50 75 L52 75 L50 85 L50 110 L50 190 L52 200 L50 225 L45 220 L40 200 L40 100 L45 80 Z" fill="transparent" stroke="transparent" stroke-width="2"/>
+        <path class="damage-zone" data-zone="Right Side" d="M150 75 L148 75 L150 85 L150 110 L150 190 L148 200 L150 225 L155 220 L160 200 L160 100 L155 80 Z" fill="transparent" stroke="transparent" stroke-width="2"/>
+        <rect class="damage-zone" data-zone="Roof" x="75" y="75" width="50" height="150" fill="transparent" stroke="transparent" stroke-width="2" rx="5"/>
+        <path class="damage-zone" data-zone="Rear Left" d="M50 225 L52 225 L55 235 L60 245 L65 255 L75 260 L75 245 L70 235 L65 225 L60 215 L55 205 L52 195 L50 185 Z" fill="transparent" stroke="transparent" stroke-width="2"/>
+        <path class="damage-zone" data-zone="Rear Right" d="M150 225 L148 225 L145 235 L140 245 L135 255 L125 260 L125 245 L130 235 L135 225 L140 215 L145 205 L148 195 L150 185 Z" fill="transparent" stroke="transparent" stroke-width="2"/>
+        <path class="damage-zone" data-zone="Rear Center" d="M75 265 L125 265 L135 260 L140 255 L145 245 L148 235 L100 235 L52 235 L55 245 L60 255 L65 260 L75 265 L75 280 C75 285, 78 290, 83 290 L117 290 C122 290, 125 285, 125 280 L125 265 Z" fill="transparent" stroke="transparent" stroke-width="2"/>
+      </svg>
+    </div>
+
+    <div class="damage-zones-chips" id="damageChipsFirst">
+      <button class="zone-chip" onclick="app.toggleZone('first','Front Left',this)">Front Left</button>
+      <button class="zone-chip" onclick="app.toggleZone('first','Front Center',this)">Front Center</button>
+      <button class="zone-chip" onclick="app.toggleZone('first','Front Right',this)">Front Right</button>
+      <button class="zone-chip" onclick="app.toggleZone('first','Left Side',this)">Left Side</button>
+      <button class="zone-chip" onclick="app.toggleZone('first','Right Side',this)">Right Side</button>
+      <button class="zone-chip" onclick="app.toggleZone('first','Rear Left',this)">Rear Left</button>
+      <button class="zone-chip" onclick="app.toggleZone('first','Rear Center',this)">Rear Center</button>
+      <button class="zone-chip" onclick="app.toggleZone('first','Rear Right',this)">Rear Right</button>
+      <button class="zone-chip" onclick="app.toggleZone('first','Roof',this)">Roof</button>
+    </div>
+
+    <div class="button-footer">
+      <button class="btn btn-secondary" onclick="app.returnToReview()">Back</button>
+      <button class="btn btn-primary" onclick="app.returnToReview()">Done</button>
+    </div>
+  </div>
+
+  <!-- ==================== SCREEN 7.5a: Severity — Your Vehicle (edit-only) ==================== -->
+  <div class="screen" id="screen-severity-first">
+    <h2 class="section-title">Your Vehicle Severity</h2>
+    <p class="section-subtitle">How severe is the damage to your vehicle? <span class="ai-badge">AI Suggested</span></p>
+
+    <div class="severity-options">
+      <div class="severity-option" onclick="app.setSeverity('first','Minor', this)">
+        <h4>Minor</h4>
+        <p>Scratches, scuffs, or small dents only. Vehicle is fully driveable.</p>
+      </div>
+      <div class="severity-option" onclick="app.setSeverity('first','Functional', this)">
+        <h4>Functional</h4>
+        <p>Broken glass, hanging bumpers, or light assembly damage. Vehicle may still be driveable.</p>
+      </div>
+      <div class="severity-option" onclick="app.setSeverity('first','Disabling', this)">
+        <h4>Disabling</h4>
+        <p>Structural frame damage, wheel misalignment, or airbag deployment. Vehicle is not driveable.</p>
+      </div>
+    </div>
+
+    <div class="button-footer">
+      <button class="btn btn-secondary" onclick="app.returnToReview()">Back</button>
+      <button class="btn btn-primary" onclick="app.returnToReview()">Done</button>
+    </div>
+  </div>
+
+  <!-- ==================== SCREEN 7.5b: Severity — Third Party Vehicle (edit-only) ==================== -->
+  <div class="screen" id="screen-severity-third">
+    <h2 class="section-title">Third Party Vehicle Severity</h2>
+    <p class="section-subtitle">How severe is the damage to the third party vehicle? <span class="ai-badge">AI Suggested</span></p>
+
+    <div class="severity-options">
+      <div class="severity-option" onclick="app.setSeverity('third','Minor', this)">
+        <h4>Minor</h4>
+        <p>Scratches, scuffs, or small dents only. Vehicle is fully driveable.</p>
+      </div>
+      <div class="severity-option" onclick="app.setSeverity('third','Functional', this)">
+        <h4>Functional</h4>
+        <p>Broken glass, hanging bumpers, or light assembly damage. Vehicle may still be driveable.</p>
+      </div>
+      <div class="severity-option" onclick="app.setSeverity('third','Disabling', this)">
+        <h4>Disabling</h4>
+        <p>Structural frame damage, wheel misalignment, or airbag deployment. Vehicle is not driveable.</p>
+      </div>
+    </div>
+
+    <div class="button-footer">
+      <button class="btn btn-secondary" onclick="app.returnToReview()">Back</button>
+      <button class="btn btn-primary" onclick="app.returnToReview()">Done</button>
+    </div>
+  </div>
+
+  <!-- ==================== SCREEN 9: Third Party Damage ==================== -->
+  <div class="screen" id="screen-damage-third">
+    <div class="progress-bar">
+      <div class="progress-icon">
+        <svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+      </div>
+      <span>55% Complete</span>
+    </div>
+
+    <h2 class="section-title">Third Party Vehicle Damage</h2>
+    <p class="section-subtitle">Select damaged areas on the third party vehicle. <span class="ai-badge">AI Suggested</span></p>
+
+    <div class="damage-zones-chips" id="damageChipsThird">
+      <button class="zone-chip" onclick="app.toggleZone('third','Front Left',this)">Front Left</button>
+      <button class="zone-chip" onclick="app.toggleZone('third','Front Center',this)">Front Center</button>
+      <button class="zone-chip" onclick="app.toggleZone('third','Front Right',this)">Front Right</button>
+      <button class="zone-chip" onclick="app.toggleZone('third','Left Side',this)">Left Side</button>
+      <button class="zone-chip" onclick="app.toggleZone('third','Right Side',this)">Right Side</button>
+      <button class="zone-chip" onclick="app.toggleZone('third','Rear Left',this)">Rear Left</button>
+      <button class="zone-chip" onclick="app.toggleZone('third','Rear Center',this)">Rear Center</button>
+      <button class="zone-chip" onclick="app.toggleZone('third','Rear Right',this)">Rear Right</button>
+      <button class="zone-chip" onclick="app.toggleZone('third','Roof',this)">Roof</button>
+    </div>
+
+    <div class="button-footer">
+      <button class="btn btn-secondary" onclick="app.returnToReview()">Back</button>
+      <button class="btn btn-primary" onclick="app.returnToReview()">Done</button>
+    </div>
+  </div>
+
+  <!-- ==================== SCREEN 11: Documents OCR ==================== -->
+  <div class="screen" id="screen-documents">
+    <div class="progress-bar">
+      <div class="progress-icon">
+        <svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+      </div>
+      <span>65% Complete</span>
+    </div>
+
+    <h2 class="section-title">Third Party Documents</h2>
+    <p class="section-subtitle">Capture the third party's documents for automatic data extraction and record keeping.</p>
+
+    <h3 class="subsection-title">Registration & Insurance</h3>
+    <div class="document-upload" onclick="app.captureDocument()">
+      <svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+      <p style="font-weight:600;margin-bottom:3px;font-size:14px">Tap to capture document</p>
+      <p style="font-size:12px;color:var(--text-muted)">Take a photo of the insurance card or registration</p>
+    </div>
+
+    <div class="ocr-results" id="ocrResults" style="display:none">
+      <h3 style="font-size:13px;font-weight:700;margin-bottom:10px">Extracted Information <span class="ai-badge">OCR</span></h3>
+      <div class="ocr-field">
+        <span class="field-label">Name</span>
+        <span class="field-value" id="ocrName">--</span>
+        <span class="confidence-badge high" id="ocrNameConf">95%</span>
+      </div>
+      <div class="ocr-field">
+        <span class="field-label">Policy #</span>
+        <span class="field-value" id="ocrPolicy">--</span>
+        <span class="confidence-badge high" id="ocrPolicyConf">92%</span>
+      </div>
+      <div class="ocr-field">
+        <span class="field-label">VIN</span>
+        <span class="field-value" id="ocrVin">--</span>
+        <span class="confidence-badge low" id="ocrVinConf">68%</span>
+      </div>
+      <div class="ocr-field">
+        <span class="field-label">License Plate</span>
+        <span class="field-value" id="ocrPlate">--</span>
+        <span class="confidence-badge high" id="ocrPlateConf">91%</span>
+      </div>
+    </div>
+
+    <h3 class="subsection-title" style="margin-top:8px">Driver's License</h3>
+    <div class="document-upload" id="docLicenseBox" onclick="app.captureExtraDoc('license')">
+      <svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
+      <p style="font-weight:600;margin-bottom:3px;font-size:14px">Tap to capture</p>
+      <p style="font-size:12px;color:var(--text-muted)">Take a photo of the driver's license</p>
+    </div>
+    <div id="docLicensePreview" style="display:none" class="doc-preview">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#2e7d32" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px;flex-shrink:0"><polyline points="20 6 9 17 4 12"/></svg>
+      <span style="flex:1;font-size:13px;color:var(--success)">Driver's License captured ✓</span>
+      <button class="remove-photo" onclick="event.stopPropagation();app.removeExtraDoc('license')" style="position:static;width:22px;height:22px;line-height:22px">&times;</button>
+    </div>
+
+    <h3 class="subsection-title" style="margin-top:8px">Insurance Card</h3>
+    <div class="document-upload" id="docInsuranceBox" onclick="app.captureExtraDoc('insurance')">
+      <svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+      <p style="font-weight:600;margin-bottom:3px;font-size:14px">Tap to capture</p>
+      <p style="font-size:12px;color:var(--text-muted)">Take a photo of the insurance card</p>
+    </div>
+    <div id="docInsurancePreview" style="display:none" class="doc-preview">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#2e7d32" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px;flex-shrink:0"><polyline points="20 6 9 17 4 12"/></svg>
+      <span style="flex:1;font-size:13px;color:var(--success)">Insurance Card captured ✓</span>
+      <button class="remove-photo" onclick="event.stopPropagation();app.removeExtraDoc('insurance')" style="position:static;width:22px;height:22px;line-height:22px">&times;</button>
+    </div>
+
+    <h3 class="subsection-title" style="margin-top:8px">Vehicle Tag / Plate</h3>
+    <div class="document-upload" id="docTagBox" onclick="app.captureExtraDoc('tag')">
+      <svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
+      <p style="font-weight:600;margin-bottom:3px;font-size:14px">Tap to capture</p>
+      <p style="font-size:12px;color:var(--text-muted)">Take a photo of the vehicle tag or plate</p>
+    </div>
+    <div id="docTagPreview" style="display:none" class="doc-preview">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#2e7d32" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px;flex-shrink:0"><polyline points="20 6 9 17 4 12"/></svg>
+      <span style="flex:1;font-size:13px;color:var(--success)">Vehicle Tag captured ✓</span>
+      <button class="remove-photo" onclick="event.stopPropagation();app.removeExtraDoc('tag')" style="position:static;width:22px;height:22px;line-height:22px">&times;</button>
+    </div>
+
+    <div class="optional-section">
+      <div class="optional-section-header" onclick="app.toggleSection('thirdPartyContact')">
+        <span class="optional-label">Third Party Driver Contact Info</span>
+        <span class="optional-tag">Optional</span>
+        <svg id="thirdPartyContactChevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;transition:transform 0.2s;flex-shrink:0"><polyline points="6 9 12 15 18 9"/></svg>
+      </div>
+      <div id="thirdPartyContactBody" style="display:none;padding-top:12px">
+        <label class="field-label-block">Phone Number</label>
+        <div class="phone-input-row">
+          <select class="country-code-select" id="thirdPartyCountryCode" onchange="app.reportData.thirdPartyPhone.countryCode=this.value">
+            <option value="+1">+1 🇺🇸</option>
+            <option value="+1-CA">+1 🇨🇦</option>
+            <option value="+44">+44 🇬🇧</option>
+            <option value="+61">+61 🇦🇺</option>
+            <option value="+64">+64 🇳🇿</option>
+            <option value="+353">+353 🇮🇪</option>
+            <option value="+49">+49 🇩🇪</option>
+            <option value="+33">+33 🇫🇷</option>
+            <option value="+34">+34 🇪🇸</option>
+            <option value="+39">+39 🇮🇹</option>
+            <option value="+31">+31 🇳🇱</option>
+            <option value="+55">+55 🇧🇷</option>
+            <option value="+52">+52 🇲🇽</option>
+            <option value="+91">+91 🇮🇳</option>
+            <option value="+86">+86 🇨🇳</option>
+            <option value="+81">+81 🇯🇵</option>
+            <option value="+82">+82 🇰🇷</option>
+            <option value="+971">+971 🇦🇪</option>
+            <option value="+966">+966 🇸🇦</option>
+            <option value="+65">+65 🇸🇬</option>
+            <option value="+27">+27 🇿🇦</option>
+          </select>
+          <input type="tel" class="phone-number-input" id="thirdPartyPhoneNumber" placeholder="Phone number" oninput="app.reportData.thirdPartyPhone.number=this.value">
+        </div>
+      </div>
+    </div>
+
+    <div class="button-footer">
+      <button class="btn btn-secondary" onclick="app.documentsBack()">Back</button>
+      <button class="btn btn-primary" onclick="app.goTo('narrative')">Continue</button>
+    </div>
+  </div>
+
+  <!-- ==================== SCREEN 15: Voice Narrative ==================== -->
+  <div class="screen" id="screen-narrative">
+    <div class="progress-bar">
+      <div class="progress-icon">
+        <svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+      </div>
+      <span>75% Complete</span>
+    </div>
+
+    <h2 class="section-title">Incident Description</h2>
+    <p class="section-subtitle">Describe what happened. Use the keyboard microphone for voice input if preferred.</p>
+
+    <div class="transcript-box">
+      <textarea id="narrativeText" placeholder="Describe the incident here..."></textarea>
+    </div>
+
+    <div class="narrative-fields">
+      <h3 class="subsection-title" style="margin-bottom:14px">Occupancy & Injuries</h3>
+
+      <div class="question-group">
+        <label>Total people in your vehicle <span style="font-size:11px;color:var(--text-muted)">(including you)</span></label>
+        <div class="number-stepper">
+          <button class="stepper-btn" onclick="app.adjustOccupancy('yours',-1)">&#8722;</button>
+          <span class="stepper-value" id="yourVehicleCount">1</span>
+          <button class="stepper-btn" onclick="app.adjustOccupancy('yours',1)">&#43;</button>
+        </div>
+      </div>
+
+      <div class="question-group">
+        <label>Were there any injuries in your vehicle?</label>
+        <div class="toggle-group">
+          <button class="toggle-btn" onclick="app.setNarrativeAnswer('yourInjuries', true, this)">Yes</button>
+          <button class="toggle-btn" onclick="app.setNarrativeAnswer('yourInjuries', false, this)">No</button>
+        </div>
+      </div>
+
+      <div id="thirdOccupancyGroup" style="display:none">
+        <div class="question-group">
+          <label>Total people in the third party vehicle</label>
+          <div class="number-stepper">
+            <button class="stepper-btn" onclick="app.adjustOccupancy('third',-1)">&#8722;</button>
+            <span class="stepper-value" id="thirdVehicleCount">1</span>
+            <button class="stepper-btn" onclick="app.adjustOccupancy('third',1)">&#43;</button>
+          </div>
+        </div>
+
+        <div class="question-group">
+          <label>Were there any injuries in the third party vehicle?</label>
+          <div class="toggle-group">
+            <button class="toggle-btn" onclick="app.setNarrativeAnswer('thirdInjuries', true, this)">Yes</button>
+            <button class="toggle-btn" onclick="app.setNarrativeAnswer('thirdInjuries', false, this)">No</button>
+          </div>
+        </div>
+      </div>
+
+      <h3 class="subsection-title" style="margin:20px 0 14px">Witnesses</h3>
+
+      <div class="question-group">
+        <label>Are there any witnesses?</label>
+        <div class="toggle-group">
+          <button class="toggle-btn" onclick="app.setWitnessToggle(true, this)">Yes</button>
+          <button class="toggle-btn" onclick="app.setWitnessToggle(false, this)">No</button>
+        </div>
+      </div>
+
+      <div id="witnessFields" style="display:none">
+        <div class="question-group">
+          <label>Witness Name</label>
+          <input type="text" class="text-input" id="witnessName" placeholder="Full name" oninput="app.reportData.witnesses.name=this.value">
+        </div>
+        <div class="question-group">
+          <label>Witness Phone Number</label>
+          <div class="phone-input-row">
+            <select class="country-code-select" id="witnessCountryCode" onchange="app.reportData.witnesses.phone.countryCode=this.value">
+              <option value="+1">+1 🇺🇸</option>
+              <option value="+1-CA">+1 🇨🇦</option>
+              <option value="+44">+44 🇬🇧</option>
+              <option value="+61">+61 🇦🇺</option>
+              <option value="+64">+64 🇳🇿</option>
+              <option value="+353">+353 🇮🇪</option>
+              <option value="+49">+49 🇩🇪</option>
+              <option value="+33">+33 🇫🇷</option>
+              <option value="+34">+34 🇪🇸</option>
+              <option value="+39">+39 🇮🇹</option>
+              <option value="+31">+31 🇳🇱</option>
+              <option value="+55">+55 🇧🇷</option>
+              <option value="+52">+52 🇲🇽</option>
+              <option value="+91">+91 🇮🇳</option>
+              <option value="+86">+86 🇨🇳</option>
+              <option value="+81">+81 🇯🇵</option>
+              <option value="+82">+82 🇰🇷</option>
+              <option value="+971">+971 🇦🇪</option>
+              <option value="+966">+966 🇸🇦</option>
+              <option value="+65">+65 🇸🇬</option>
+              <option value="+27">+27 🇿🇦</option>
+            </select>
+            <input type="tel" class="phone-number-input" id="witnessPhone" placeholder="Phone number" oninput="app.reportData.witnesses.phone.number=this.value">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="button-footer">
+      <button class="btn btn-secondary" onclick="app.goTo('documents')">Back</button>
+      <button class="btn btn-primary" onclick="app.narrativeContinue()">Continue</button>
+    </div>
+  </div>
+
+  <!-- ==================== SCREEN 15b: Police Report ==================== -->
+  <div class="screen" id="screen-police-report">
+    <div class="progress-bar">
+      <div class="progress-icon">
+        <svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+      </div>
+      <span>80% Complete</span>
+    </div>
+
+    <h2 class="section-title">Police Report</h2>
+    <p class="section-subtitle">Provide information about any police involvement at the scene.</p>
+
+    <div class="question-group">
+      <label>Was a police report filed?</label>
+      <div class="toggle-group">
+        <button class="toggle-btn" onclick="app.setPoliceAnswer('filed', true, this)">Yes</button>
+        <button class="toggle-btn" onclick="app.setPoliceAnswer('filed', false, this)">No</button>
+      </div>
+    </div>
+
+    <div id="policeReportDetails" style="display:none">
+      <div class="question-group">
+        <label>Upload Police Report <span style="font-size:11px;color:var(--text-muted)">(Optional)</span></label>
+        <div class="document-upload" id="policeDocUpload" onclick="app.capturePoliceReport()" style="margin-top:6px">
+          <svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+          <p style="font-weight:600;margin-bottom:3px;font-size:14px">Tap to capture document</p>
+          <p style="font-size:12px;color:var(--text-muted)">Photo of the police report or case number</p>
+        </div>
+        <div id="policeDocPreview" style="display:none" class="doc-preview">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px;flex-shrink:0;color:var(--success)"><polyline points="20 6 9 17 4 12"/></svg>
+          <span style="flex:1;font-size:13px">Police report captured</span>
+          <button class="remove-photo" onclick="event.stopPropagation();app.removePoliceDoc()" style="position:static;width:22px;height:22px;line-height:22px">&times;</button>
+        </div>
+      </div>
+
+      <div class="question-group">
+        <label>Were there any violations?</label>
+        <div class="toggle-group">
+          <button class="toggle-btn" onclick="app.setPoliceAnswer('violations', true, this)">Yes</button>
+          <button class="toggle-btn" onclick="app.setPoliceAnswer('violations', false, this)">No</button>
+        </div>
+      </div>
+
+      <div class="question-group">
+        <label>Were any citations issued?</label>
+        <div class="toggle-group">
+          <button class="toggle-btn" onclick="app.setPoliceAnswer('citations', true, this)">Yes</button>
+          <button class="toggle-btn" onclick="app.setPoliceAnswer('citations', false, this)">No</button>
+        </div>
+      </div>
+
+      <div id="citationDocGroup" style="display:none">
+        <div class="document-upload" id="citationDocUpload" onclick="app.captureCitationDoc()" style="margin-top:6px">
+          <svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+          <p style="font-weight:600;margin-bottom:3px;font-size:14px">Tap to capture citation</p>
+          <p style="font-size:12px;color:var(--text-muted)">Photo of the citation or ticket</p>
+        </div>
+        <div id="citationDocPreview" style="display:none" class="doc-preview">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#2e7d32" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px;flex-shrink:0"><polyline points="20 6 9 17 4 12"/></svg>
+          <span style="flex:1;font-size:13px;color:var(--success)">Citation captured ✓</span>
+          <button class="remove-photo" onclick="event.stopPropagation();app.removeCitationDoc()" style="position:static;width:22px;height:22px;line-height:22px">&times;</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="button-footer">
+      <button class="btn btn-secondary" onclick="app.goTo('narrative')">Back</button>
+      <button class="btn btn-primary" onclick="app.goTo('property-damage')">Continue</button>
+    </div>
+  </div>
+
+  <!-- ==================== SCREEN 15c: Property Damage ==================== -->
+  <div class="screen" id="screen-property-damage">
+    <div class="progress-bar">
+      <div class="progress-icon">
+        <svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+      </div>
+      <span>85% Complete</span>
+    </div>
+
+    <h2 class="section-title">Property Damage</h2>
+    <p class="section-subtitle">Was any non-vehicle property damaged? (e.g. a building, fence, or storefront)</p>
+
+    <div class="question-group">
+      <label>Was any property damaged?</label>
+      <div class="toggle-group">
+        <button class="toggle-btn" onclick="app.setPropertyAnswer('damaged', true, this)">Yes</button>
+        <button class="toggle-btn" onclick="app.setPropertyAnswer('damaged', false, this)">No</button>
+      </div>
+    </div>
+
+    <div id="propertyDamageDetails" style="display:none">
+      <div class="question-group">
+        <label>Photo of Damaged Property</label>
+        <div class="document-upload" id="propertyPhotoUpload" onclick="app.capturePropertyPhoto()" style="margin-top:6px">
+          <svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+          <p style="font-weight:600;margin-bottom:3px;font-size:14px">Tap to capture photo</p>
+          <p style="font-size:12px;color:var(--text-muted)">Photo of the damaged property or structure</p>
+        </div>
+        <div id="propertyPhotoPreview" style="display:none" class="doc-preview">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px;flex-shrink:0;color:var(--success)"><polyline points="20 6 9 17 4 12"/></svg>
+          <span style="flex:1;font-size:13px">Property photo captured</span>
+          <button class="remove-photo" onclick="event.stopPropagation();app.removePropertyPhoto()" style="position:static;width:22px;height:22px;line-height:22px">&times;</button>
+        </div>
+      </div>
+
+      <div class="question-group">
+        <label>Property Name</label>
+        <input type="text" class="text-input" id="propertyName" placeholder="e.g. Walmart, Maple St Residence" oninput="app.reportData.propertyDamageInfo.propertyName=this.value">
+      </div>
+
+      <div class="question-group">
+        <label>Property Address <span class="ai-badge" style="margin-left:4px">GPS</span></label>
+        <input type="text" class="text-input" id="propertyAddress" placeholder="Auto-filled from GPS" oninput="app.reportData.propertyDamageInfo.address=this.value">
+      </div>
+
+      <div class="optional-section">
+        <div class="optional-section-header" onclick="app.toggleSection('propertyOwner')">
+          <span class="optional-label">Property Owner Information</span>
+          <span class="optional-tag">Optional</span>
+          <svg id="propertyOwnerChevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;transition:transform 0.2s;flex-shrink:0"><polyline points="6 9 12 15 18 9"/></svg>
+        </div>
+        <div id="propertyOwnerBody" style="display:none;padding-top:12px">
+          <div class="question-group" style="margin-bottom:12px">
+            <label class="field-label-block">Owner Name</label>
+            <input type="text" class="text-input" id="propertyOwnerName" placeholder="Full name" oninput="app.reportData.propertyDamageInfo.ownerName=this.value">
+          </div>
+          <div class="question-group">
+            <label class="field-label-block">Owner Phone Number</label>
+            <div class="phone-input-row">
+              <select class="country-code-select" id="propertyOwnerCountryCode" onchange="app.reportData.propertyDamageInfo.ownerPhone.countryCode=this.value">
+                <option value="+1">+1 🇺🇸</option>
+                <option value="+1-CA">+1 🇨🇦</option>
+                <option value="+44">+44 🇬🇧</option>
+                <option value="+61">+61 🇦🇺</option>
+                <option value="+64">+64 🇳🇿</option>
+                <option value="+353">+353 🇮🇪</option>
+                <option value="+49">+49 🇩🇪</option>
+                <option value="+33">+33 🇫🇷</option>
+                <option value="+34">+34 🇪🇸</option>
+                <option value="+39">+39 🇮🇹</option>
+                <option value="+31">+31 🇳🇱</option>
+                <option value="+55">+55 🇧🇷</option>
+                <option value="+52">+52 🇲🇽</option>
+                <option value="+91">+91 🇮🇳</option>
+                <option value="+86">+86 🇨🇳</option>
+                <option value="+81">+81 🇯🇵</option>
+                <option value="+82">+82 🇰🇷</option>
+                <option value="+971">+971 🇦🇪</option>
+                <option value="+966">+966 🇸🇦</option>
+                <option value="+65">+65 🇸🇬</option>
+                <option value="+27">+27 🇿🇦</option>
+              </select>
+              <input type="tel" class="phone-number-input" id="propertyOwnerPhone" placeholder="Phone number" oninput="app.reportData.propertyDamageInfo.ownerPhone.number=this.value">
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="button-footer">
+      <button class="btn btn-secondary" onclick="app.goTo('police-report')">Back</button>
+      <button class="btn btn-primary" onclick="app.goTo('review')">Continue</button>
+    </div>
+  </div>
+
+  <!-- ==================== SCREEN 16: Contextual Info ==================== -->
+  <div class="screen" id="screen-context">
+    <h2 class="section-title">Contextual Information</h2>
+    <p class="section-subtitle">Automatically gathered from GPS and external data sources. <span class="ai-badge">Auto-filled</span></p>
+
+    <div class="context-grid">
+      <div class="context-card">
+        <div class="context-icon"><svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg></div>
+        <div class="context-label">Weather</div>
+        <div class="context-value" id="ctxWeather">Clear, 72&deg;F</div>
+      </div>
+      <div class="context-card">
+        <div class="context-icon"><svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6H5a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h13l4-6z"/></svg></div>
+        <div class="context-label">Road Conditions</div>
+        <div class="context-value" id="ctxRoad">Dry</div>
+      </div>
+      <div class="context-card">
+        <div class="context-icon"><svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></div>
+        <div class="context-label">Speed at Impact</div>
+        <div class="context-value" id="ctxSpeed">32 mph</div>
+      </div>
+      <div class="context-card">
+        <div class="context-icon"><svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg></div>
+        <div class="context-label">Location</div>
+        <div class="context-value" id="ctxLocation" style="font-size:12px">Interstate 78, MM 47</div>
+      </div>
+      <div class="context-card">
+        <div class="context-icon"><svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
+        <div class="context-label">Time</div>
+        <div class="context-value" id="ctxTime">2:30 PM</div>
+      </div>
+      <div class="context-card">
+        <div class="context-icon"><svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></div>
+        <div class="context-label">G-Force</div>
+        <div class="context-value" id="ctxGForce">-4.2g</div>
+      </div>
+    </div>
+
+    <div class="button-footer">
+      <button class="btn btn-primary" onclick="app.goTo('review')">Back to Review</button>
+    </div>
+  </div>
+
+  <!-- ==================== SCREEN 17: Review & Submit ==================== -->
+  <div class="screen" id="screen-review">
+    <div class="progress-bar">
+      <div class="progress-icon">
+        <svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+      </div>
+      <span>95% Complete</span>
+    </div>
+
+    <h2 class="section-title">Review & Submit</h2>
+    <p class="section-subtitle">Please review all information before submitting your report.</p>
+
+    <div class="review-section">
+      <h3><svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg> Incident Details</h3>
+      <div class="review-row">
+        <span class="label">Date / Time</span>
+        <span class="value"><span class="verified-icon">&#x2714;</span> <span id="revDateTime">Oct 4, 2025 2:30 PM</span></span>
+      </div>
+      <div class="review-row">
+        <span class="label">Location</span>
+        <span class="value"><span class="verified-icon">&#x2714;</span> <span id="revLocation">Interstate 78, MM 47</span></span>
+      </div>
+      <div class="review-row">
+        <span class="label">Third Party</span>
+        <span class="value" id="revThirdParty">Yes</span>
+      </div>
+    </div>
+
+    <div class="review-section">
+      <h3><svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> Vehicle Assessment</h3>
+      <div class="review-row">
+        <span class="label">Your Damage</span>
+        <span class="value" id="revFirstDamage">Front Left, Front Center</span>
+        <a class="review-edit-link" onclick="app.editFromReview('damage-first')">Edit</a>
+      </div>
+      <div class="review-row">
+        <span class="label">Your Severity</span>
+        <span class="value" id="revSeverityFirst">Functional</span>
+        <a class="review-edit-link" onclick="app.editFromReview('severity-first')">Edit</a>
+      </div>
+      <div class="review-row" id="revRowThirdType">
+        <span class="label">3rd Party Type</span>
+        <span class="value" id="revThirdType">--</span>
+      </div>
+      <div class="review-row" id="revRowThirdDamage">
+        <span class="label">3rd Party Damage</span>
+        <span class="value" id="revThirdDamage">--</span>
+        <a class="review-edit-link" onclick="app.editFromReview('damage-third')">Edit</a>
+      </div>
+      <div class="review-row" id="revRowThirdSeverity">
+        <span class="label">3rd Party Severity</span>
+        <span class="value" id="revSeverityThird">--</span>
+        <a class="review-edit-link" onclick="app.editFromReview('severity-third')">Edit</a>
+      </div>
+    </div>
+
+    <div class="review-section" id="revSectionThirdInfo">
+      <h3><svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg> Third Party Info</h3>
+      <div class="review-row">
+        <span class="label">Name</span>
+        <span class="value" id="revName">--</span>
+      </div>
+      <div class="review-row">
+        <span class="label">Policy #</span>
+        <span class="value" id="revPolicy">--</span>
+      </div>
+      <div class="review-row">
+        <span class="label">VIN</span>
+        <span class="value" id="revVin">--</span>
+      </div>
+      <div class="review-row">
+        <span class="label">Plate</span>
+        <span class="value" id="revPlate">--</span>
+      </div>
+    </div>
+
+    <div class="review-section">
+      <h3><svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/></svg> Conditions <a class="review-edit-link" onclick="app.editFromReview('context')">View</a></h3>
+      <div class="review-row">
+        <span class="label">Weather</span>
+        <span class="value"><span class="verified-icon">&#x2714;</span> <span id="revWeather">Clear, 72&deg;F</span></span>
+      </div>
+      <div class="review-row">
+        <span class="label">Road</span>
+        <span class="value"><span class="verified-icon">&#x2714;</span> <span id="revRoad">Dry</span></span>
+      </div>
+      <div class="review-row">
+        <span class="label">Speed</span>
+        <span class="value"><span class="verified-icon">&#x2714;</span> <span id="revSpeed">32 mph</span></span>
+      </div>
+    </div>
+
+    <div class="review-section">
+      <h3><svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg> Occupancy &amp; Injuries</h3>
+      <div class="review-row">
+        <span class="label">Your Vehicle (People)</span>
+        <span class="value" id="revYourVehiclePeople">—</span>
+      </div>
+      <div class="review-row">
+        <span class="label">Your Vehicle (Injuries)</span>
+        <span class="value" id="revYourInjuries">—</span>
+      </div>
+      <div class="review-row" id="revRowThirdVehiclePeople">
+        <span class="label">3rd Party (People)</span>
+        <span class="value" id="revThirdVehiclePeople">—</span>
+      </div>
+      <div class="review-row" id="revRowThirdInjuries">
+        <span class="label">3rd Party (Injuries)</span>
+        <span class="value" id="revThirdInjuries">—</span>
+      </div>
+      <div class="review-row">
+        <span class="label">Witnesses</span>
+        <span class="value" id="revWitnesses">—</span>
+      </div>
+      <div class="review-row" id="revRowWitnessName">
+        <span class="label">Witness Name</span>
+        <span class="value" id="revWitnessName">—</span>
+      </div>
+      <div class="review-row" id="revRowWitnessPhone">
+        <span class="label">Witness Phone</span>
+        <span class="value" id="revWitnessPhone">—</span>
+      </div>
+    </div>
+
+    <div class="review-section">
+      <h3><svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.61 3.41 2 2 0 0 1 3.6 1.25h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.83a16 16 0 0 0 6.29 6.29l.95-.95a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg> Police Report</h3>
+      <div class="review-row">
+        <span class="label">Report Filed</span>
+        <span class="value" id="revPoliceFiled">—</span>
+        <a class="review-edit-link" onclick="app.editFromReview('police-report')">Edit</a>
+      </div>
+      <div class="review-row" id="revRowPoliceDoc">
+        <span class="label">Document</span>
+        <span class="value" id="revPoliceDoc">—</span>
+      </div>
+      <div class="review-row" id="revRowPoliceViolations">
+        <span class="label">Violations</span>
+        <span class="value" id="revPoliceViolations">—</span>
+      </div>
+      <div class="review-row" id="revRowPoliceCitations">
+        <span class="label">Citations</span>
+        <span class="value" id="revPoliceCitations">—</span>
+      </div>
+    </div>
+
+    <div class="review-section">
+      <h3><svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg> Property Damage</h3>
+      <div class="review-row">
+        <span class="label">Property Damaged</span>
+        <span class="value" id="revPropertyDamaged">—</span>
+        <a class="review-edit-link" onclick="app.editFromReview('property-damage')">Edit</a>
+      </div>
+      <div class="review-row" id="revRowPropertyName">
+        <span class="label">Property</span>
+        <span class="value" id="revPropertyName">—</span>
+      </div>
+      <div class="review-row" id="revRowPropertyAddress">
+        <span class="label">Address</span>
+        <span class="value" id="revPropertyAddress">—</span>
+      </div>
+    </div>
+
+    <p id="submitStatus" style="display:none;font-size:13px;color:var(--text-secondary);text-align:center;margin:0 16px 4px;line-height:1.4"></p>
+    <div class="button-footer">
+      <button class="btn btn-secondary" onclick="app.goTo('property-damage')">Back</button>
+      <button class="btn btn-success" onclick="app.submitReport()">Submit Report</button>
+    </div>
+  </div>
+
+  <!-- ==================== SCREEN 18: Submission Success ==================== -->
+  <div class="screen" id="screen-success">
+    <div class="success-screen">
+      <div class="success-icon">
+        <svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+      </div>
+      <h2 style="margin-bottom:6px">Report Submitted</h2>
+      <p style="color:var(--text-secondary);margin-bottom:20px;font-size:14px;line-height:1.5">All photos and documents have been uploaded to MyGeotab and linked to the collision event. Your fleet manager can view everything in the exception event page.</p>
+      <p style="font-size:13px;color:var(--text-muted);margin-bottom:24px">Report ID: <strong id="reportId">INC-2025-0412</strong></p>
+      <button class="btn btn-primary" onclick="app.goTo('incidents')" style="max-width:260px;margin:0 auto">Return to Home</button>
+    </div>
+  </div>
+
+  <script src="app.js?v=6"></script>
+</body>
+</html>

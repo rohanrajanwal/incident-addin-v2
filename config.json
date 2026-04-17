@@ -1,0 +1,17 @@
+{
+  "name": "Incident Reconstruction Engine",
+  "supportEmail": "support@geotab.com",
+  "version": "1.0.0",
+  "items": [
+    {
+      "url": "https://rohanrajanwal.github.io/incident-addin/index.html",
+      "path": "DriveAppLink/",
+      "menuName": {
+        "en": "Incident Report"
+      },
+      "icon": "https://rohanrajanwal.github.io/incident-addin/images/icon.svg"
+    }
+  ],
+  "isSigned": false,
+  "isPageAllowed": true
+}

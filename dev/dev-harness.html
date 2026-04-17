@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Geotab Drive Add-in Dev Harness</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #1a1a2e;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+    }
+
+    /* Toolbar */
+    .toolbar {
+      background: #16213e;
+      color: #e0e0e0;
+      padding: 10px 16px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      border-bottom: 1px solid #2a2a4a;
+      flex-shrink: 0;
+    }
+
+    .toolbar h1 {
+      font-size: 14px;
+      font-weight: 600;
+      color: #64b5f6;
+    }
+
+    .toolbar label {
+      font-size: 12px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .toolbar select, .toolbar button {
+      background: #2a2a4a;
+      color: #e0e0e0;
+      border: 1px solid #3a3a5a;
+      border-radius: 4px;
+      padding: 4px 8px;
+      font-size: 12px;
+      cursor: pointer;
+    }
+
+    .toolbar button:hover { background: #3a3a5a; }
+
+    .toolbar .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #4caf50;
+      display: inline-block;
+    }
+
+    .toolbar .dot.offline { background: #ff9800; }
+
+    .toolbar input[type="checkbox"] {
+      accent-color: #64b5f6;
+    }
+
+    /* Phone Frame */
+    .phone-container {
+      flex: 1;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+    }
+
+    .phone-frame {
+      width: 390px;
+      height: 844px;
+      max-height: calc(100vh - 80px);
+      border-radius: 40px;
+      border: 4px solid #333;
+      overflow: hidden;
+      background: white;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+      position: relative;
+    }
+
+    .phone-frame::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 80px;
+      height: 22px;
+      background: #333;
+      border-radius: 0 0 12px 12px;
+      z-index: 10;
+    }
+
+    .phone-frame iframe {
+      width: 100%;
+      height: 100%;
+      border: none;
+      scrollbar-width: none;
+    }
+
+    .phone-frame {
+      overflow: hidden;
+    }
+
+    /* Log Panel */
+    .log-panel {
+      background: #0d1117;
+      color: #c9d1d9;
+      padding: 8px 16px;
+      max-height: 160px;
+      overflow-y: auto;
+      font-family: 'Fira Code', 'Consolas', monospace;
+      font-size: 11px;
+      border-top: 1px solid #2a2a4a;
+      flex-shrink: 0;
+    }
+
+    .log-panel .log-entry {
+      padding: 2px 0;
+      border-bottom: 1px solid #161b22;
+    }
+
+    .log-panel .log-time { color: #8b949e; }
+    .log-panel .log-method { color: #79c0ff; }
+    .log-panel .log-type { color: #7ee787; }
+    .log-panel .log-data { color: #e6edf3; }
+  </style>
+</head>
+<body>
+
+  <!-- Toolbar -->
+  <div class="toolbar">
+    <h1>&#x1F6E0; Geotab Drive Dev Harness</h1>
+    <label>
+      Scenario:
+      <select id="scenario">
+        <option value="collision-major">Major Collision (3rd party)</option>
+        <option value="collision-minor">Minor Collision (loading dock)</option>
+        <option value="no-third-party">No Third Party (parking)</option>
+      </select>
+    </label>
+    <button onclick="reloadAddin()">&#x21BB; Reload</button>
+    <label>
+      <input type="checkbox" id="toggleOffline" onchange="toggleOffline()">
+      Simulate Offline
+    </label>
+    <label>
+      <span class="dot" id="statusDot"></span>
+      <span id="statusText">Connected</span>
+    </label>
+    <button onclick="clearLog()">Clear Log</button>
+    <button onclick="clearStorage()">Reset Data</button>
+  </div>
+
+  <!-- Phone Frame -->
+  <div class="phone-container">
+    <div class="phone-frame">
+      <iframe id="addin-frame" src="../index.html"></iframe>
+    </div>
+  </div>
+
+  <!-- Log Panel -->
+  <div class="log-panel" id="logPanel">
+    <div class="log-entry">
+      <span class="log-time">[--:--:--]</span>
+      <span class="log-data">Dev harness ready. Select a scenario and click Reload.</span>
+    </div>
+  </div>
+
+  <script src="mock-sdk.js"></script>
+  <script>
+    const frame = document.getElementById('addin-frame');
+    let currentMock = null;
+
+    // Intercept console.log from iframe
+    frame.onload = () => {
+      const scenario = document.getElementById('scenario').value;
+      currentMock = createMockApi(scenario);
+
+      addLog('system', `Loaded scenario: ${scenario}`);
+      addLog('system', `Driver: ${currentMock.state.driver.name}`);
+      addLog('system', `Vehicle: ${currentMock.state.device.name} (${currentMock.state.device.vehicleIdentificationNumber})`);
+
+      // Wrap mock API to log calls
+      const originalCall = currentMock.api.call.bind(currentMock.api);
+      currentMock.api.call = function(method, params) {
+        addLog('api', `${method}(${params.typeName || ''})`);
+        return originalCall(method, params);
+      };
+
+      const addinWindow = frame.contentWindow;
+
+      // Intercept iframe console
+      const origLog = addinWindow.console.log;
+      addinWindow.console.log = (...args) => {
+        origLog.apply(addinWindow.console, args);
+        addLog('addin', args.map(a => typeof a === 'object' ? JSON.stringify(a).substring(0, 200) : a).join(' '));
+      };
+
+      // Initialize the add-in
+      setTimeout(() => {
+        if (addinWindow.geotab && addinWindow.geotab.addin) {
+          const addinKey = Object.keys(addinWindow.geotab.addin)[0];
+          if (addinKey) {
+            const addin = addinWindow.geotab.addin[addinKey]();
+            addin.initialize(currentMock.api, currentMock.state, () => {
+              addLog('system', 'Add-in initialized ✓');
+              addin.focus(currentMock.api, currentMock.state);
+              addLog('system', 'Add-in focused ✓');
+            });
+          }
+        }
+      }, 300);
+    };
+
+    function reloadAddin() {
+      frame.src = frame.src;
+    }
+
+    function toggleOffline() {
+      const offline = document.getElementById('toggleOffline').checked;
+      const dot = document.getElementById('statusDot');
+      const text = document.getElementById('statusText');
+
+      if (offline) {
+        dot.classList.add('offline');
+        text.textContent = 'Offline';
+        addLog('system', 'Simulating offline mode');
+        // Override navigator.onLine in iframe
+        if (frame.contentWindow) {
+          Object.defineProperty(frame.contentWindow.navigator, 'onLine', { get: () => false, configurable: true });
+          frame.contentWindow.dispatchEvent(new Event('offline'));
+        }
+      } else {
+        dot.classList.remove('offline');
+        text.textContent = 'Connected';
+        addLog('system', 'Back online');
+        if (frame.contentWindow) {
+          Object.defineProperty(frame.contentWindow.navigator, 'onLine', { get: () => true, configurable: true });
+          frame.contentWindow.dispatchEvent(new Event('online'));
+        }
+      }
+    }
+
+    function addLog(type, message) {
+      const panel = document.getElementById('logPanel');
+      const time = new Date().toLocaleTimeString('en-US', { hour12: false });
+      const typeColors = {
+        system: 'log-data',
+        api: 'log-method',
+        addin: 'log-type'
+      };
+
+      const entry = document.createElement('div');
+      entry.className = 'log-entry';
+      entry.innerHTML = `<span class="log-time">[${time}]</span> <span class="${typeColors[type] || 'log-data'}">[${type}]</span> <span class="log-data">${escapeHtml(message)}</span>`;
+      panel.appendChild(entry);
+      panel.scrollTop = panel.scrollHeight;
+    }
+
+    function clearLog() {
+      document.getElementById('logPanel').innerHTML = '';
+      addLog('system', 'Log cleared');
+    }
+
+    function clearStorage() {
+      if (frame.contentWindow) {
+        frame.contentWindow.localStorage.clear();
+        addLog('system', 'LocalStorage cleared');
+      }
+      reloadAddin();
+    }
+
+    function escapeHtml(str) {
+      const div = document.createElement('div');
+      div.textContent = str;
+      return div.innerHTML;
+    }
+  </script>
+</body>
+</html>
