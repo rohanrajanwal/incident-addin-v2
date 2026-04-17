@@ -32,6 +32,7 @@ const app = {
   },
   _sceneVideoBlob: null,
   _selectedExceptionEventId: null,
+  _eventsCache: {},
 
   // ---- Geotab Add-in Lifecycle ----
   initializeAddin() {
@@ -185,6 +186,10 @@ const app = {
           .filter(Boolean)
       );
 
+      // Cache events for context lookup when starting a report
+      this._eventsCache = {};
+      (events || []).forEach(e => { this._eventsCache[e.id] = e; });
+
       // Sort newest first
       const sorted = (events || []).sort((a, b) =>
         new Date(b.activeFrom) - new Date(a.activeFrom)
@@ -276,6 +281,9 @@ const app = {
 
   startReport(exceptionEventId) {
     this._selectedExceptionEventId = exceptionEventId;
+    const event = exceptionEventId ? (this._eventsCache[exceptionEventId] || null) : null;
+    this.reportData.context = {}; // reset context for new report
+    this._fetchEventContext(event); // async, runs in background
     this.goTo('safety');
   },
 
@@ -300,6 +308,7 @@ const app = {
       window.scrollTo(0, 0);
 
       if (screenId === 'review') this.populateReview();
+      if (screenId === 'context') this.populateContextScreen();
       if (screenId === 'narrative') this.initNarrativeScreen();
       if (screenId === 'property-damage') this.initPropertyDamageScreen();
     }
@@ -1156,46 +1165,158 @@ const app = {
   },
 
   // ---- Telemetry & Context ----
-  async fetchTelemetry() {
-    if (!this.api) return;
+  async _fetchEventContext(event) {
+    const eventTime = event?.activeFrom ? new Date(event.activeFrom) : new Date();
+    const deviceId = event?.device?.id || this.state?.device?.id;
+
+    // Always store the event timestamp
+    this.reportData.context.eventTime = eventTime;
+
+    if (!this.api || !deviceId) return;
 
     try {
-      const deviceId = this.state?.device?.id;
-      if (!deviceId) return;
+      // Query LogRecord ±2 min around event time to get GPS + speed
+      const from = new Date(eventTime.getTime() - 120000);
+      const to   = new Date(eventTime.getTime() + 30000);
 
-      const now = new Date();
-      const from = new Date(now.getTime() - 120000); // 2 min ago
+      const logs = await new Promise((resolve, reject) =>
+        this.api.call('Get', {
+          typeName: 'LogRecord',
+          search: { deviceSearch: { id: deviceId }, fromDate: from.toISOString(), toDate: to.toISOString() }
+        }, resolve, reject)
+      );
 
-      // Get device info
-      const devices = await this.api.call('Get', {
-        typeName: 'Device',
-        search: { id: deviceId }
-      });
+      if (!logs || logs.length === 0) return;
 
-      if (devices && devices.length) {
-        this.reportData.context.vin = devices[0].vehicleIdentificationNumber;
-        this.reportData.context.vehicleName = devices[0].name;
-      }
+      // Record closest to the event time
+      const target = eventTime.getTime();
+      const sorted = logs.slice().sort((a, b) => new Date(a.dateTime) - new Date(b.dateTime));
+      const closest = sorted.reduce((prev, cur) =>
+        Math.abs(new Date(cur.dateTime) - target) < Math.abs(new Date(prev.dateTime) - target) ? cur : prev
+      );
 
-      // Get log records (GPS + speed)
-      const logs = await this.api.call('Get', {
-        typeName: 'LogRecord',
-        search: {
-          deviceSearch: { id: deviceId },
-          fromDate: from.toISOString(),
-          toDate: now.toISOString()
+      this.reportData.context.latitude  = closest.latitude;
+      this.reportData.context.longitude = closest.longitude;
+      this.reportData.context.speedKmh  = closest.speed; // km/h
+
+      // Estimate g-force from speed change across event boundary
+      const before = sorted.filter(l => new Date(l.dateTime) <= eventTime);
+      const after  = sorted.filter(l => new Date(l.dateTime) >  eventTime);
+      if (before.length && after.length) {
+        const b = before[before.length - 1], a = after[0];
+        const dtSec = (new Date(a.dateTime) - new Date(b.dateTime)) / 1000;
+        if (dtSec > 0) {
+          const dvMs = (b.speed - a.speed) / 3.6; // Δv in m/s
+          const g = Math.abs(dvMs / (dtSec * 9.81));
+          if (g > 0.05) this.reportData.context.gForce = g;
         }
-      });
-
-      if (logs && logs.length) {
-        const last = logs[logs.length - 1];
-        this.reportData.context.latitude = last.latitude;
-        this.reportData.context.longitude = last.longitude;
-        this.reportData.context.speed = last.speed;
       }
+
+      // Reverse-geocode coordinates
+      try {
+        const addrs = await new Promise((resolve, reject) =>
+          this.api.call('GetAddresses', {
+            coordinates: [{ x: closest.longitude, y: closest.latitude }]
+          }, resolve, reject)
+        );
+        if (addrs && addrs.length) {
+          const a = addrs[0];
+          const parts = [
+            a.streetNumber ? `${a.street || ''} ${a.streetNumber}`.trim() : (a.street || null),
+            a.city,
+            a.province || a.state
+          ].filter(Boolean);
+          this.reportData.context.locationStr = parts.length
+            ? parts.join(', ')
+            : `${closest.latitude.toFixed(4)}, ${closest.longitude.toFixed(4)}`;
+        }
+      } catch (e) {
+        this.reportData.context.locationStr =
+          `${closest.latitude.toFixed(4)}°, ${closest.longitude.toFixed(4)}°`;
+      }
+
+      // Fetch historical weather from Open-Meteo (free, no key required)
+      try {
+        const lat  = closest.latitude.toFixed(4);
+        const lon  = closest.longitude.toFixed(4);
+        const date = eventTime.toISOString().split('T')[0];
+        const hour = eventTime.getUTCHours();
+        const daysAgo = Math.floor((Date.now() - eventTime.getTime()) / 86400000);
+
+        const base = daysAgo >= 5
+          ? 'https://archive-api.open-meteo.com/v1/era5'
+          : 'https://api.open-meteo.com/v1/forecast';
+        const pastParam = daysAgo < 5 ? `&past_days=${Math.max(daysAgo + 1, 1)}` : '';
+        const url = `${base}?latitude=${lat}&longitude=${lon}&start_date=${date}&end_date=${date}${pastParam}&hourly=temperature_2m,weathercode&temperature_unit=fahrenheit&timezone=UTC`;
+
+        const resp = await fetch(url);
+        if (resp.ok) {
+          const data = await resp.json();
+          const temp = data.hourly?.temperature_2m?.[hour];
+          const code = data.hourly?.weathercode?.[hour];
+          if (temp !== undefined && code !== undefined) {
+            this.reportData.context.weather        = `${this._wmoToDesc(code)}, ${Math.round(temp)}°F`;
+            this.reportData.context.roadConditions = this._weatherToRoad(code, temp);
+          }
+        }
+      } catch (e) {
+        console.warn('[Context] Weather fetch failed:', e);
+      }
+
     } catch (err) {
-      console.warn('[Telemetry] Failed to fetch:', err);
+      console.warn('[Context] Failed to fetch event context:', err);
     }
+  },
+
+  _wmoToDesc(code) {
+    if (code === 0)                          return 'Clear';
+    if (code <= 3)                           return 'Partly Cloudy';
+    if (code <= 48)                          return 'Foggy';
+    if (code <= 55)                          return 'Drizzle';
+    if (code <= 67)                          return 'Rain';
+    if (code <= 77)                          return 'Snow';
+    if (code <= 82)                          return 'Rain Showers';
+    if (code <= 86)                          return 'Snow Showers';
+    if (code >= 95)                          return 'Thunderstorm';
+    return 'Overcast';
+  },
+
+  _weatherToRoad(code, tempF) {
+    if (code >= 71 && code <= 86)            return 'Icy / Snow-covered';
+    if ((code >= 51 && code <= 67) || (code >= 80 && code <= 82)) return 'Wet';
+    if (code >= 45 && code <= 48)            return 'Reduced Visibility';
+    if (tempF !== undefined && tempF <= 32)  return 'Icy';
+    return 'Dry';
+  },
+
+  populateContextScreen() {
+    const ctx = this.reportData.context;
+
+    // Time
+    if (ctx.eventTime) {
+      const t = new Date(ctx.eventTime);
+      this.setEl('ctxTime', t.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }));
+    }
+
+    // Location
+    this.setEl('ctxLocation',
+      ctx.locationStr ||
+      (ctx.latitude != null ? `${ctx.latitude.toFixed(4)}°, ${ctx.longitude.toFixed(4)}°` : '—')
+    );
+
+    // Speed at impact
+    this.setEl('ctxSpeed',
+      ctx.speedKmh != null ? `${(ctx.speedKmh * 0.621371).toFixed(0)} mph` : '—'
+    );
+
+    // G-force
+    this.setEl('ctxGForce',
+      ctx.gForce != null ? `-${ctx.gForce.toFixed(1)}g` : '—'
+    );
+
+    // Weather & road
+    this.setEl('ctxWeather',        ctx.weather        || '—');
+    this.setEl('ctxRoad',           ctx.roadConditions || '—');
   },
 
   // ---- Review Screen ----
@@ -1203,6 +1324,19 @@ const app = {
     const d = this.reportData;
     const a = d.answers;
     const isThirdParty = !!a.thirdParty;
+
+    // Incident date/time and location from event context
+    const ctx = d.context;
+    if (ctx.eventTime) {
+      const t = new Date(ctx.eventTime);
+      this.setEl('revDateTime',
+        t.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) +
+        ' ' + t.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
+      );
+    }
+    if (ctx.locationStr) {
+      this.setEl('revLocation', ctx.locationStr);
+    }
 
     this.setEl('revThirdParty', isThirdParty ? 'Yes' : 'No');
     this.setEl('revFirstDamage', d.damageZones.first.join(', ') || '—');
