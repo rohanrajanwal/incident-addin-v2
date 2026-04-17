@@ -61,23 +61,47 @@ const app = {
     this.setupOfflineDetection();
     this.loadSavedProgress();
     this.initDamageZoneClicks();
+    this._updateDriverGreeting();
     this.loadIncidents();
   },
 
   onFocus() {
     console.log('[Incident Add-in] Focused');
-    if (this.state) {
-      const driver = this.state.driver;
-      if (driver && driver.name) {
-        const firstName = driver.name.split(' ')[0];
-        this.setEl('driverFirstName', firstName);
-        this.setEl('driverInitials', firstName[0] + (driver.name.split(' ')[1] || 'X')[0]);
-      }
-    }
+    this._updateDriverGreeting();
     // Refresh incidents when app comes into focus (may have new events)
     if (this.currentScreen === 'incidents') {
       this.loadIncidents();
     }
+  },
+
+  _updateDriverGreeting() {
+    if (!this.state) return;
+    let firstName = null;
+    let fullName = null;
+
+    // Prefer driver name (the person logged into the device)
+    const driver = this.state.driver;
+    if (driver && driver.name) {
+      fullName = driver.name;
+      firstName = driver.name.split(' ')[0];
+    }
+
+    // Fallback: extract first name from the session userName (email address)
+    if (!firstName && this.state.userName) {
+      const local = this.state.userName.split('@')[0]; // e.g. "john.doe"
+      const part = local.split(/[._]/)[0];             // e.g. "john"
+      firstName = part.charAt(0).toUpperCase() + part.slice(1).toLowerCase();
+      fullName = firstName; // no last name available
+    }
+
+    if (!firstName) return;
+
+    this.setEl('driverFirstName', firstName);
+
+    // Update initials if we have a full name
+    const parts = (fullName || firstName).split(' ');
+    const initials = parts[0][0] + (parts[1] ? parts[1][0] : parts[0][1] || '');
+    this.setEl('driverInitials', initials.toUpperCase());
   },
 
   // ---- Incidents List ----
