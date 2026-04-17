@@ -74,33 +74,61 @@ const app = {
     }
   },
 
-  _updateDriverGreeting() {
+  async _updateDriverGreeting() {
     if (!this.state) return;
-    let firstName = null;
-    let fullName = null;
 
-    // Prefer driver name (the person logged into the device)
+    // 1. Prefer driver name (the person logged into the device in Drive)
     const driver = this.state.driver;
     if (driver && driver.name) {
-      fullName = driver.name;
-      firstName = driver.name.split(' ')[0];
+      this._applyGreetingName(driver.name);
+      return;
     }
 
-    // Fallback: extract first name from the session userName (email address)
-    if (!firstName && this.state.userName) {
-      const local = this.state.userName.split('@')[0]; // e.g. "john.doe"
-      const part = local.split(/[._]/)[0];             // e.g. "john"
-      firstName = part.charAt(0).toUpperCase() + part.slice(1).toLowerCase();
-      fullName = firstName; // no last name available
+    // 2. Query the User entity from the API — has proper firstName/lastName fields
+    if (this.api) {
+      try {
+        const userName = await new Promise((resolve) => {
+          if (typeof this.api.getSession === 'function') {
+            try { this.api.getSession((s) => resolve(s?.userName || this.state.userName || null)); }
+            catch (e) { resolve(this.state.userName || null); }
+          } else {
+            resolve(this.state.userName || null);
+          }
+        });
+
+        if (userName) {
+          const users = await new Promise((resolve, reject) => {
+            this.api.call('Get', { typeName: 'User', search: { name: userName }, resultsLimit: 1 }, resolve, reject);
+          });
+          if (users && users.length > 0) {
+            const u = users[0];
+            const firstName = u.firstName || u.name?.split(' ')[0] || '';
+            const lastName = u.lastName || u.name?.split(' ')[1] || '';
+            if (firstName) {
+              this._applyGreetingName(firstName + (lastName ? ' ' + lastName : ''));
+              return;
+            }
+          }
+        }
+      } catch (e) {
+        console.warn('[Greeting] API user lookup failed:', e);
+      }
     }
 
-    if (!firstName) return;
+    // 3. Last resort: parse the email local-part
+    const email = this.state.userName || '';
+    if (email) {
+      const local = email.split('@')[0];
+      const part = local.split(/[._-]/)[0];
+      if (part) this._applyGreetingName(part.charAt(0).toUpperCase() + part.slice(1).toLowerCase());
+    }
+  },
 
+  _applyGreetingName(fullName) {
+    const parts = fullName.trim().split(' ');
+    const firstName = parts[0];
     this.setEl('driverFirstName', firstName);
-
-    // Update initials if we have a full name
-    const parts = (fullName || firstName).split(' ');
-    const initials = parts[0][0] + (parts[1] ? parts[1][0] : parts[0][1] || '');
+    const initials = firstName[0] + (parts[1] ? parts[1][0] : firstName[1] || '');
     this.setEl('driverInitials', initials.toUpperCase());
   },
 
