@@ -1431,8 +1431,9 @@ populateContextScreen() {
     if (statusEl) statusEl.style.display = '';
 
     try {
+      let receipt = null;
       if (this.api && !this.api._isMock) {
-        await this.submitToGeotab();
+        receipt = await this.submitToGeotab();
       } else {
         // Demo mode — simulate delay
         this.setEl('submitStatus', 'Saving report (demo mode)…');
@@ -1440,10 +1441,8 @@ populateContextScreen() {
         console.log('[Submit] Mock submission data:', JSON.stringify(this.reportData, null, 2));
       }
 
-      const reportId = 'INC-' + new Date().getFullYear() + '-' +
-        String(Math.floor(Math.random() * 9999)).padStart(4, '0');
-      this.setEl('reportId', reportId);
       this.goTo('success');
+      this._showSubmitReceipt(receipt);
       this.clearProgress();
     } catch (err) {
       console.error('[Submit] Failed:', err);
@@ -1454,6 +1453,40 @@ populateContextScreen() {
       }
       await this.saveOffline(this.reportData);
     }
+  },
+
+  _showSubmitReceipt(receipt) {
+    const el = document.getElementById('submitReceipt');
+    if (!el) return;
+
+    if (!receipt) {
+      el.innerHTML = '<span style="color:var(--text-muted)">Demo mode — no data sent to database.</span>';
+      el.style.display = '';
+      return;
+    }
+
+    const { addInDataId, mediaFileIds = [], exceptionEventId } = receipt;
+    const lines = [];
+
+    if (addInDataId) {
+      lines.push(`<strong>AddInData ID:</strong> <code style="font-size:11px;word-break:break-all">${addInDataId}</code>`);
+    } else {
+      lines.push(`<strong>AddInData:</strong> <span style="color:var(--error)">Not created (API may have failed)</span>`);
+    }
+
+    lines.push(`<strong>Exception Event:</strong> ${exceptionEventId || '<span style="color:var(--text-muted)">None (test incident)</span>'}`);
+
+    if (mediaFileIds.length > 0) {
+      lines.push(`<strong>Files uploaded (${mediaFileIds.length}):</strong>`);
+      mediaFileIds.forEach(f => {
+        lines.push(`&nbsp;&nbsp;• ${f.name} <code style="font-size:10px;color:var(--text-muted)">${f.id}</code>`);
+      });
+    } else {
+      lines.push(`<strong>Files uploaded:</strong> None`);
+    }
+
+    el.innerHTML = lines.join('<br>');
+    el.style.display = '';
   },
 
   async submitToGeotab() {
@@ -1515,7 +1548,7 @@ populateContextScreen() {
     this.setEl('submitStatus', 'Saving report…');
     const d = this.reportData;
     const reportText = this.formatReportText();
-    await this.api.call('Add', {
+    const addInDataId = await this.api.call('Add', {
       typeName: 'AddInData',
       entity: {
         addInId: 'aIncidentReport001',
@@ -1564,6 +1597,8 @@ populateContextScreen() {
         console.warn('[Submit] Could not set ExceptionEvent comment:', e);
       }
     }
+
+    return { addInDataId, mediaFileIds, exceptionEventId };
   },
 
   // ---- Submission helpers ----
