@@ -212,6 +212,8 @@ const app = {
       currentList.innerHTML = `
         <div style="text-align:center;padding:28px 16px;color:var(--text-secondary)">
           <p style="font-size:14px">No open incidents found in the last 30 days.</p>
+          <button class="btn btn-secondary" style="max-width:220px;margin:14px auto 0;display:block;font-size:13px"
+            onclick="app.injectTestIncident()">+ Add Test Incident</button>
         </div>`;
     } else {
       unreported.forEach(event => {
@@ -272,7 +274,8 @@ const app = {
     currentList.innerHTML = `
       <div style="text-align:center;padding:28px 16px;color:var(--text-secondary)">
         <p style="font-size:14px;margin-bottom:12px">Could not load incidents from database.</p>
-        <button class="btn btn-primary" style="max-width:220px;margin:0 auto" onclick="app.startReport(null)">Start New Report</button>
+        <button class="btn btn-primary" style="max-width:220px;margin:0 auto;display:block" onclick="app.startReport(null)">Start New Report</button>
+        <button class="btn btn-secondary" style="max-width:220px;margin:10px auto 0;display:block;font-size:13px" onclick="app.injectTestIncident()">+ Add Test Incident</button>
       </div>`;
     pastHeader.style.display = 'none';
     pastSubtitle.style.display = 'none';
@@ -285,6 +288,42 @@ const app = {
     this.reportData.context = {}; // reset context for new report
     this._fetchEventContext(event); // async, runs in background
     this.goTo('safety');
+  },
+
+  injectTestIncident() {
+    // Creates a fake ExceptionEvent for UI/submission testing when no real events exist.
+    // ExceptionEvents are system-generated and cannot be created via API directly.
+    // This test event pre-seeds realistic context data so the full flow can be validated.
+    // Remove or hide this button before any production rollout.
+    const eventTime = new Date(Date.now() - 2 * 60 * 60 * 1000); // 2 hours ago
+    const deviceName = this.state?.device?.name || 'Test Vehicle';
+
+    const fakeEvent = {
+      id: 'aTestIncident001',
+      activeFrom: eventTime.toISOString(),
+      rule: { name: 'Collision Detected (TEST)' },
+      device: { id: this.state?.device?.id || null, name: deviceName }
+    };
+
+    // Cache so startReport can find it
+    this._eventsCache['aTestIncident001'] = fakeEvent;
+
+    // Pre-seed context with realistic dummy data so context/review screens are populated
+    this.reportData.context = {
+      eventTime,
+      locationStr:    '1145 Eglinton Ave E, Toronto, ON',
+      latitude:        43.7085,
+      longitude:      -79.3398,
+      speedKmh:        52,
+      gForce:          2.8
+    };
+
+    // Replace the empty-state with a card in the list
+    const currentList = document.getElementById('currentIncidentsList');
+    if (currentList) {
+      currentList.innerHTML = '';
+      currentList.appendChild(this.buildIncidentCard(fakeEvent, false));
+    }
   },
 
   _escHtml(str) {
@@ -1179,6 +1218,19 @@ const app = {
 
   // ---- Telemetry & Context ----
   async _fetchEventContext(event) {
+    // Test incident — restore pre-seeded dummy context instead of hitting the API
+    if (event?.id === 'aTestIncident001') {
+      this.reportData.context = {
+        eventTime:   new Date(event.activeFrom),
+        locationStr: '1145 Eglinton Ave E, Toronto, ON',
+        latitude:     43.7085,
+        longitude:   -79.3398,
+        speedKmh:     52,
+        gForce:       2.8
+      };
+      return;
+    }
+
     const eventTime = event?.activeFrom ? new Date(event.activeFrom) : new Date();
     const deviceId = event?.device?.id || this.state?.device?.id;
 
