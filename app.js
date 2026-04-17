@@ -519,20 +519,26 @@ const app = {
 
   // ---- 360° Scene Video ----
   captureSceneVideo() {
-    const onFile = (file) => {
-      this._sceneVideoBlob = file;
-      this.reportData.sceneVideo = { name: file.name, size: file.size };
-      document.getElementById('sceneVideoSlot').style.display = 'none';
-      document.getElementById('sceneVideoPreview').style.display = 'flex';
-      this.setEl('sceneVideoName', file.name);
+    // Use accept="video/*" without capture so iOS presents its own native action sheet
+    // ("Take Video" / "Photo Library" / "Browse"). This lets iOS manage camera/mic
+    // permissions through its own flow rather than us forcing the camera open directly.
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'video/*';
+    input.style.cssText = 'position:fixed;top:-9999px;left:-9999px;opacity:0;';
+    input.onchange = (e) => {
+      const file = e.target.files[0];
+      if (file) {
+        this._sceneVideoBlob = file;
+        this.reportData.sceneVideo = { name: file.name, size: file.size };
+        document.getElementById('sceneVideoSlot').style.display = 'none';
+        document.getElementById('sceneVideoPreview').style.display = 'flex';
+        this.setEl('sceneVideoName', file.name);
+      }
+      if (input.parentNode) input.parentNode.removeChild(input);
     };
-    // "Take a Video" opens camera directly in video mode (capture="environment" on
-    // accept="video/*") — avoids the crash that occurs when sliding photo→video.
-    // "Choose from Videos" opens the library picker (no capture) for an already-recorded clip.
-    this._showVideoMenu(
-      () => this._videoInput(true,  onFile),
-      () => this._videoInput(false, onFile)
-    );
+    document.body.appendChild(input);
+    input.click();
   },
 
   removeSceneVideo() {
