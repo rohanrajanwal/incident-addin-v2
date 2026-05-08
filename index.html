@@ -534,7 +534,7 @@
             <option value="+65">+65 🇸🇬</option>
             <option value="+27">+27 🇿🇦</option>
           </select>
-          <input type="tel" class="phone-number-input" id="thirdPartyPhoneNumber" placeholder="Phone number" oninput="app.reportData.thirdPartyPhone.number=this.value">
+          <input type="tel" class="phone-number-input" id="thirdPartyPhoneNumber" placeholder="(555) 555-5555" maxlength="14" oninput="app.formatPhoneInput(this, v => app.reportData.thirdPartyPhone.number = v)">
         </div>
       </div>
     </div>
@@ -641,7 +641,7 @@
               <option value="+65">+65 🇸🇬</option>
               <option value="+27">+27 🇿🇦</option>
             </select>
-            <input type="tel" class="phone-number-input" id="witnessPhone" placeholder="Phone number" oninput="app.reportData.witnesses.phone.number=this.value">
+            <input type="tel" class="phone-number-input" id="witnessPhone" placeholder="(555) 555-5555" maxlength="14" oninput="app.formatPhoneInput(this, v => app.reportData.witnesses.phone.number = v)">
           </div>
         </div>
       </div>
@@ -806,7 +806,7 @@
                 <option value="+65">+65 🇸🇬</option>
                 <option value="+27">+27 🇿🇦</option>
               </select>
-              <input type="tel" class="phone-number-input" id="propertyOwnerPhone" placeholder="Phone number" oninput="app.reportData.propertyDamageInfo.ownerPhone.number=this.value">
+              <input type="tel" class="phone-number-input" id="propertyOwnerPhone" placeholder="(555) 555-5555" maxlength="14" oninput="app.formatPhoneInput(this, v => app.reportData.propertyDamageInfo.ownerPhone.number = v)">
             </div>
           </div>
         </div>

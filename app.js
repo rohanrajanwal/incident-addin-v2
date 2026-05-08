@@ -732,6 +732,21 @@ const app = {
   },
 
   // ---- Shared capture helpers ----
+  // ---- Phone number formatting ----
+  formatPhoneInput(inputEl, storeCallback) {
+    let digits = inputEl.value.replace(/\D/g, '').slice(0, 10);
+    let formatted = digits;
+    if (digits.length > 6) {
+      formatted = `(${digits.slice(0,3)}) ${digits.slice(3,6)}-${digits.slice(6)}`;
+    } else if (digits.length > 3) {
+      formatted = `(${digits.slice(0,3)}) ${digits.slice(3)}`;
+    } else if (digits.length > 0) {
+      formatted = `(${digits}`;
+    }
+    inputEl.value = formatted;
+    storeCallback(digits);
+  },
+
   _showDocMenu(onTake, onChoose) {
     const overlay = document.createElement('div');
     overlay.className = 'photo-menu-overlay';

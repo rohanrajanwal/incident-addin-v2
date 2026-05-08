@@ -1005,6 +1005,21 @@ body {
   max-width: 60%;
 }
 
+/* Rows that have an Edit link: expand label so value and edit don't collide */
+.review-row:has(.review-edit-link) .label {
+  flex: 1;
+  padding-right: 8px;
+}
+.review-row:has(.review-edit-link) .value {
+  max-width: none;
+  text-align: right;
+  flex-shrink: 1;
+}
+.review-row:has(.review-edit-link) .review-edit-link {
+  margin-left: 12px;
+  flex-shrink: 0;
+}
+
 .verified-icon {
   color: var(--success);
   font-size: 13px;
