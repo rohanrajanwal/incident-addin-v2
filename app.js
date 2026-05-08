@@ -192,12 +192,16 @@ const app = {
           .filter(Boolean)
       );
 
+      // Filter to collision-related rules only
+      const COLLISION_RULES = ['Possible collision', 'Major Collision'];
+      const collisionEvents = (events || []).filter(e => COLLISION_RULES.includes(e.rule?.name));
+
       // Cache events for context lookup when starting a report
       this._eventsCache = {};
-      (events || []).forEach(e => { this._eventsCache[e.id] = e; });
+      collisionEvents.forEach(e => { this._eventsCache[e.id] = e; });
 
       // Sort newest first
-      const sorted = (events || []).sort((a, b) =>
+      const sorted = collisionEvents.sort((a, b) =>
         new Date(b.activeFrom) - new Date(a.activeFrom)
       );
 
