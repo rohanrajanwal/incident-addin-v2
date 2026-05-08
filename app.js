@@ -1524,25 +1524,28 @@ populateContextScreen() {
     const server = this.state.server || 'my.geotab.com';
     const credentials = await this._getApiCredentials();
 
-    // 1. Find the relevant exception event
+    // 1. Find the relevant exception event (full object for activeFrom timestamp)
     this.setEl('submitStatus', 'Locating incident event…');
-    const exceptionEventId = await this.getExceptionEventId();
-    console.log('[Submit] Exception event:', exceptionEventId);
+    const exceptionEvent = await this.getExceptionEvent();
+    const exceptionEventId = exceptionEvent?.id || null;
+    const exceptionDateTime = exceptionEvent?.activeFrom || dateTime;
+    console.log('[Submit] Exception event:', exceptionEventId, 'at', exceptionDateTime);
 
-    // 2. Collect every photo / document to upload
-    const photoLabels = ['Front View', 'Rear View', 'Left Side', 'Right Side', 'Damage Close-up'];
+    // 2. Collect every photo / document to upload — names are descriptive PascalCase for organization
+    const yourLabels  = ['UserVehicle_FrontView', 'UserVehicle_RearView', 'UserVehicle_LeftSide', 'UserVehicle_RightSide', 'UserVehicle_DamageCloseup'];
+    const thirdLabels = ['ThirdParty_FrontView',  'ThirdParty_RearView',  'ThirdParty_LeftSide',  'ThirdParty_RightSide',  'ThirdParty_DamageCloseup'];
     const uploads = [
-      ...this.reportData.photosYours.map((d, i) => d ? { data: d, name: `Your Vehicle - ${photoLabels[i]}` } : null),
-      ...this.reportData.photosThird.map((d, i) => d ? { data: d, name: `Third Party - ${photoLabels[i]}` } : null),
-      this.reportData.docLicense                && { data: this.reportData.docLicense,                   name: "Driver's License" },
-      this.reportData.docInsurance              && { data: this.reportData.docInsurance,                 name: 'Insurance Card' },
-      this.reportData.docTag                    && { data: this.reportData.docTag,                       name: 'Vehicle Tag/Plate' },
-      this.reportData.policeReport.document     && { data: this.reportData.policeReport.document,        name: 'Police Report' },
-      this.reportData.policeReport.citationDoc  && { data: this.reportData.policeReport.citationDoc,     name: 'Citation Document' },
-      this.reportData.propertyDamageInfo.photo  && { data: this.reportData.propertyDamageInfo.photo,     name: 'Property Damage Photo' },
+      ...this.reportData.photosYours.map((d, i) => d ? { data: d, name: yourLabels[i]  } : null),
+      ...this.reportData.photosThird.map((d, i) => d ? { data: d, name: thirdLabels[i] } : null),
+      this.reportData.docLicense               && { data: this.reportData.docLicense,                  name: 'ThirdParty_DriversLicense' },
+      this.reportData.docInsurance             && { data: this.reportData.docInsurance,                name: 'ThirdParty_InsuranceCard' },
+      this.reportData.docTag                   && { data: this.reportData.docTag,                      name: 'ThirdParty_VehicleTag' },
+      this.reportData.policeReport.document    && { data: this.reportData.policeReport.document,       name: 'PoliceReport_Document' },
+      this.reportData.policeReport.citationDoc && { data: this.reportData.policeReport.citationDoc,    name: 'PoliceReport_Citation' },
+      this.reportData.propertyDamageInfo.photo && { data: this.reportData.propertyDamageInfo.photo,    name: 'PropertyDamage_Photo' },
     ].filter(Boolean);
 
-    // 3. Upload each file as MediaFile (photos + documents)
+    // 3. Upload each file as MediaFile dated to the exception time so it appears on the exception page
     const mediaFileIds = [];
     for (let i = 0; i < uploads.length; i++) {
       const item = uploads[i];
@@ -1550,7 +1553,7 @@ populateContextScreen() {
       try {
         const id = await this.uploadMediaFile(
           item.data, item.name, deviceId, driverId,
-          dateTime, exceptionEventId, server, credentials
+          exceptionDateTime, exceptionEventId, server, credentials
         );
         if (id) mediaFileIds.push({ id, name: item.name });
       } catch (e) {
@@ -1563,10 +1566,10 @@ populateContextScreen() {
       this.setEl('submitStatus', 'Uploading scene video…');
       try {
         const id = await this.uploadVideoFile(
-          this._sceneVideoBlob, this.reportData.sceneVideo.name,
-          deviceId, driverId, dateTime, exceptionEventId, server, credentials
+          this._sceneVideoBlob, 'SceneVideo',
+          deviceId, driverId, exceptionDateTime, exceptionEventId, server, credentials
         );
-        if (id) mediaFileIds.push({ id, name: this.reportData.sceneVideo.name });
+        if (id) mediaFileIds.push({ id, name: 'SceneVideo' });
       } catch (e) {
         console.warn('[Submit] Scene video upload failed:', e);
       }
@@ -1640,14 +1643,28 @@ populateContextScreen() {
 
   // ---- Submission helpers ----
 
-  async getExceptionEventId() {
-    // 1. Use the event the user selected from the incidents list
-    if (this._selectedExceptionEventId) return this._selectedExceptionEventId;
+  async getExceptionEvent() {
+    // 1. User selected a specific event from the incidents list — pull full object from cache
+    if (this._selectedExceptionEventId) {
+      const cached = this._eventsCache?.[this._selectedExceptionEventId];
+      if (cached) return cached;
+      // Cache miss — fetch full event by id
+      try {
+        const events = await new Promise((resolve, reject) =>
+          this.api.call('Get', {
+            typeName: 'ExceptionEvent',
+            search: { id: this._selectedExceptionEventId }
+          }, resolve, reject)
+        );
+        if (events?.[0]) return events[0];
+      } catch (e) { /* fall through */ }
+      return { id: this._selectedExceptionEventId, activeFrom: null };
+    }
 
-    // 2. Some Drive SDK versions inject the exception event via state
-    if (this.state?.exceptionEvent?.id) return this.state.exceptionEvent.id;
+    // 2. Drive SDK injects exception event via state
+    if (this.state?.exceptionEvent?.id) return this.state.exceptionEvent;
 
-    // 3. Fall back: query the most recent exception for this device (last 2 hours)
+    // 3. Fallback: most recent collision exception for this device in the last 2 hours
     try {
       const now = new Date();
       const twoHoursAgo = new Date(now - 2 * 60 * 60 * 1000);
@@ -1661,9 +1678,9 @@ populateContextScreen() {
           }
         }, resolve, reject)
       );
-      if (events && events.length > 0) {
+      if (events?.length > 0) {
         events.sort((a, b) => new Date(b.activeFrom) - new Date(a.activeFrom));
-        return events[0].id;
+        return events[0];
       }
     } catch (e) {
       console.warn('[Submit] Could not find exception event:', e);
@@ -1671,22 +1688,24 @@ populateContextScreen() {
     return null;
   },
 
-  async uploadMediaFile(base64DataUrl, name, deviceId, driverId, dateTime, exceptionEventId, server, credentials) {
+  async uploadMediaFile(base64DataUrl, name, deviceId, driverId, eventDateTime, exceptionEventId, server, credentials) {
     // Resize/compress before upload
     const resized = await this._resizeImage(base64DataUrl);
 
     // Step 1: Create the MediaFile entity record
+    // fromDate/toDate = exception event time so the file appears in the exception's time window in MyGeotab
     const entityId = await new Promise((resolve, reject) =>
       this.api.call('Add', {
         typeName: 'MediaFile',
         entity: {
           device: { id: deviceId },
           ...(driverId ? { driver: { id: driverId } } : {}),
-          fromDate: dateTime,
-          toDate: dateTime,
+          fromDate: eventDateTime,
+          toDate: eventDateTime,
           mediaType: 'Image',
           name: name,
-          metaData: exceptionEventId ? { exceptionEventId } : {}
+          solutionId: 'IncidentReport',
+          metaData: exceptionEventId ? JSON.stringify({ exceptionEventId }) : '{}'
         }
       }, resolve, reject)
     );
@@ -1706,7 +1725,7 @@ populateContextScreen() {
       const blob = new Blob([byteArray], { type: mimeType });
 
       const formData = new FormData();
-      formData.append('file', blob, name.replace(/[^a-z0-9_-]/gi, '_') + '.jpg');
+      formData.append('file', blob, name + '.jpg');
 
       const credStr = encodeURIComponent(JSON.stringify(credentials));
       const mediaStr = encodeURIComponent(JSON.stringify({ id: entityId }));
@@ -1721,7 +1740,7 @@ populateContextScreen() {
     return entityId;
   },
 
-  async uploadVideoFile(blob, name, deviceId, driverId, dateTime, exceptionEventId, server, credentials) {
+  async uploadVideoFile(blob, name, deviceId, driverId, eventDateTime, exceptionEventId, server, credentials) {
     // Create the MediaFile entity record for a video
     const entityId = await new Promise((resolve, reject) =>
       this.api.call('Add', {
@@ -1729,11 +1748,12 @@ populateContextScreen() {
         entity: {
           device: { id: deviceId },
           ...(driverId ? { driver: { id: driverId } } : {}),
-          fromDate: dateTime,
-          toDate: dateTime,
+          fromDate: eventDateTime,
+          toDate: eventDateTime,
           mediaType: 'Video',
           name: name,
-          metaData: exceptionEventId ? { exceptionEventId } : {}
+          solutionId: 'IncidentReport',
+          metaData: exceptionEventId ? JSON.stringify({ exceptionEventId }) : '{}'
         }
       }, resolve, reject)
     );
