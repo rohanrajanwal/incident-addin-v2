@@ -1460,7 +1460,8 @@ populateContextScreen() {
       console.error('[Submit] Failed:', err);
       if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'Submit Report'; }
       if (statusEl) {
-        statusEl.textContent = 'Submission failed. Please try again.';
+        const msg = err?.message || err?.name || (typeof err === 'string' ? err : JSON.stringify(err));
+        statusEl.textContent = `Submission failed: ${msg || 'Unknown error'}`;
         statusEl.style.color = 'var(--error, #c62828)';
       }
       await this.saveOffline(this.reportData);
@@ -1560,40 +1561,48 @@ populateContextScreen() {
     this.setEl('submitStatus', 'Saving report…');
     const d = this.reportData;
     const reportText = this.formatReportText();
-    const addInDataId = await new Promise((resolve, reject) =>
-      this.api.call('Add', {
-        typeName: 'AddInData',
-        entity: {
-          addInId: 'aIncidentReport001',
-          details: {
-            exceptionEventId: exceptionEventId || null,
-            submittedAt: dateTime,
-            device: { id: deviceId, name: this.state.device.name },
-            driver: driverId ? { id: driverId, name: this.state.driver.name } : null,
-            mediaFileIds,
-            reportText,
-            incident: {
-              answers: d.answers,
-              narrative: d.narrative,
-              occupancy: d.occupancy,
-              witnesses: { hasWitnesses: d.witnesses.hasWitnesses, name: d.witnesses.name, phone: d.witnesses.phone },
-              policeReport: { filed: d.policeReport.filed, violations: d.policeReport.violations, citations: d.policeReport.citations },
-              propertyDamage: {
-                damaged: d.propertyDamageInfo.damaged,
-                propertyName: d.propertyDamageInfo.propertyName,
-                address: d.propertyDamageInfo.address,
-                ownerName: d.propertyDamageInfo.ownerName,
-              },
-              thirdPartyOcr: d.ocr,
-              thirdPartyPhone: d.thirdPartyPhone,
-              damageZones: d.damageZones,
-              severityFirst: d.severityFirst,
-              severityThird: d.severityThird,
+    // Strip raw image data from OCR — only keep extracted text fields (image already uploaded as MediaFile)
+    const { documentImage: _omit, ...ocrTextFields } = d.ocr || {};
+    let addInDataId = null;
+    try {
+      addInDataId = await new Promise((resolve, reject) =>
+        this.api.call('Add', {
+          typeName: 'AddInData',
+          entity: {
+            addInId: 'aIncidentReport001',
+            details: {
+              exceptionEventId: exceptionEventId || null,
+              submittedAt: dateTime,
+              device: { id: deviceId, name: this.state.device.name },
+              driver: driverId ? { id: driverId, name: this.state.driver.name } : null,
+              mediaFileIds,
+              reportText,
+              incident: {
+                answers: d.answers,
+                narrative: d.narrative,
+                occupancy: d.occupancy,
+                witnesses: { hasWitnesses: d.witnesses.hasWitnesses, name: d.witnesses.name, phone: d.witnesses.phone },
+                policeReport: { filed: d.policeReport.filed, violations: d.policeReport.violations, citations: d.policeReport.citations },
+                propertyDamage: {
+                  damaged: d.propertyDamageInfo.damaged,
+                  propertyName: d.propertyDamageInfo.propertyName,
+                  address: d.propertyDamageInfo.address,
+                  ownerName: d.propertyDamageInfo.ownerName,
+                },
+                thirdPartyOcr: ocrTextFields,
+                thirdPartyPhone: d.thirdPartyPhone,
+                damageZones: d.damageZones,
+                severityFirst: d.severityFirst,
+                severityThird: d.severityThird,
+              }
             }
           }
-        }
-      }, resolve, reject)
-    );
+        }, resolve, reject)
+      );
+    } catch (e) {
+      console.error('[Submit] AddInData Add failed:', e);
+      // Non-fatal — media files and comment may still have succeeded
+    }
 
     // 5. Add report text as a comment on the ExceptionEvent so it's visible in the Geotab UI
     if (exceptionEventId) {
@@ -1662,7 +1671,6 @@ populateContextScreen() {
           toDate: dateTime,
           mediaType: 'Image',
           name: name,
-          solutionId: 'IncidentReport',
           metaData: exceptionEventId ? { exceptionEventId } : {}
         }
       }, resolve, reject)
@@ -1710,7 +1718,6 @@ populateContextScreen() {
           toDate: dateTime,
           mediaType: 'Video',
           name: name,
-          solutionId: 'IncidentReport',
           metaData: exceptionEventId ? { exceptionEventId } : {}
         }
       }, resolve, reject)
