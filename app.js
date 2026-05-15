@@ -1558,7 +1558,7 @@ populateContextScreen() {
       try {
         const id = await this.uploadMediaFile(
           item.data, item.name, deviceId, driverId,
-          exceptionDateTime, exceptionEventId, server, credentials
+          dateTime, exceptionEventId, server, credentials
         );
         if (id) mediaFileIds.push({ id, name: item.name });
       } catch (e) {
@@ -1574,7 +1574,7 @@ populateContextScreen() {
       try {
         const id = await this.uploadVideoFile(
           this._sceneVideoBlob, 'SceneVideo',
-          deviceId, driverId, exceptionDateTime, exceptionEventId, server, credentials
+          deviceId, driverId, dateTime, exceptionEventId, server, credentials
         );
         if (id) mediaFileIds.push({ id, name: 'SceneVideo' });
       } catch (e) {
@@ -1724,7 +1724,8 @@ populateContextScreen() {
     const resized = await this._resizeImage(base64DataUrl);
 
     // Step 1: Create the MediaFile entity record
-    // fromDate/toDate = exception event time so the file appears in the exception's time window in MyGeotab
+    // fromDate/toDate = current submission time (exception activeFrom caused "undefined exception" rejection)
+    // The exceptionEventId in metaData links this file to the exception event
     const entityId = await new Promise((resolve, reject) =>
       this.api.call('Add', {
         typeName: 'MediaFile',
