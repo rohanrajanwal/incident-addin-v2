@@ -1493,10 +1493,13 @@ populateContextScreen() {
       return;
     }
 
-    const { addInDataId, addInDataError, mediaFileIds = [], uploadErrors = [], exceptionEventId } = receipt;
+    const { addInDataId, addInDataError, mediaFileIds = [], uploadErrors = [], exceptionEventId, mediaFileSupported, mediaFileSample, deviceId } = receipt;
     const lines = [];
 
+    lines.push(`<strong>Device ID:</strong> ${deviceId || '?'}`);
     lines.push(`<strong>Exception Event:</strong> ${exceptionEventId || '<span style="color:var(--text-muted)">None</span>'}`);
+    const mfStatus = mediaFileSupported === true ? `✓ supported${mediaFileSample ? ' (sample solutionId: ' + (mediaFileSample.solutionId || 'none') + ')' : ' (no existing files)'}` : mediaFileSupported === false ? '<span style="color:var(--error)">✗ NOT supported in this database</span>' : '<span style="color:var(--text-muted)">not checked</span>';
+    lines.push(`<strong>MediaFile entity:</strong> ${mfStatus}`);
 
     if (addInDataId) {
       lines.push(`<strong>AddInData:</strong> saved ✓`);
@@ -1534,6 +1537,26 @@ populateContextScreen() {
     const exceptionEventId = exceptionEvent?.id || null;
     const exceptionDateTime = exceptionEvent?.activeFrom || dateTime;
     console.log('[Submit] Exception event:', exceptionEventId, 'at', exceptionDateTime);
+
+    // 1b. Preflight: verify MediaFile entity type is accessible in this database
+    this.setEl('submitStatus', 'Checking media support…');
+    let mediaFileSupported = false;
+    let mediaFileSample = null;
+    try {
+      const mfResult = await new Promise((resolve, reject) =>
+        this.api.call('Get', {
+          typeName: 'MediaFile',
+          search: { deviceSearch: { id: deviceId } },
+          resultsLimit: 1
+        }, resolve, reject)
+      );
+      mediaFileSupported = true;
+      mediaFileSample = mfResult?.[0] || null;
+      console.log('[Submit] MediaFile Get OK, count:', mfResult?.length, 'sample:', JSON.stringify(mediaFileSample));
+    } catch (e) {
+      console.error('[Submit] MediaFile Get FAILED:', JSON.stringify(e));
+      mediaFileSupported = false;
+    }
 
     // 2. Collect every photo / document to upload — names are descriptive PascalCase for organization
     const yourLabels  = ['UserVehicle_FrontView', 'UserVehicle_RearView', 'UserVehicle_LeftSide', 'UserVehicle_RightSide', 'UserVehicle_DamageCloseup'];
@@ -1669,7 +1692,7 @@ populateContextScreen() {
       }
     }
 
-    return { addInDataId, addInDataError, mediaFileIds, uploadErrors, exceptionEventId };
+    return { addInDataId, addInDataError, mediaFileIds, uploadErrors, exceptionEventId, mediaFileSupported, mediaFileSample, deviceId };
   },
 
   // ---- Submission helpers ----
