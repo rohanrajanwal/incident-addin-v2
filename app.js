@@ -1514,7 +1514,7 @@ populateContextScreen() {
 
     if (uploadErrors.length > 0) {
       lines.push(`<strong style="color:var(--error)">Upload errors (${uploadErrors.length}):</strong>`);
-      uploadErrors.slice(0, 3).forEach(e => lines.push(`<span style="font-size:11px;color:var(--error);word-break:break-all">&nbsp;&nbsp;• ${e}</span>`));
+      uploadErrors.slice(0, 5).forEach(e => lines.push(`<span style="font-size:13px;color:var(--error);word-break:break-all;display:block;padding:4px 0">&bull; ${e}</span>`));
     }
 
     el.innerHTML = lines.join('<br>');
@@ -1562,8 +1562,8 @@ populateContextScreen() {
         );
         if (id) mediaFileIds.push({ id, name: item.name });
       } catch (e) {
-        const msg = e?.message || e?.name || JSON.stringify(e);
-        console.warn('[Submit] Upload failed for', item.name, e);
+        const msg = (e?.message || e?.name || String(e) || 'unknown') + (e ? ' | raw: ' + JSON.stringify(e) : '');
+        console.error('[Submit] Upload failed for', item.name, JSON.stringify(e), e);
         uploadErrors.push(`${item.name}: ${msg}`);
       }
     }
@@ -1724,22 +1724,16 @@ populateContextScreen() {
     const resized = await this._resizeImage(base64DataUrl);
 
     // Step 1: Create the MediaFile entity record
-    // fromDate/toDate = current submission time (exception activeFrom caused "undefined exception" rejection)
-    // The exceptionEventId in metaData links this file to the exception event
+    // DIAGNOSTIC: stripped to minimum fields to isolate what the API rejects
+    const entity = {
+      device: { id: deviceId },
+      mediaType: 'Image',
+      name: name + '.jpg',
+      solutionId: 'IncidentReport',
+    };
+    console.log('[Submit] MediaFile entity:', JSON.stringify(entity), 'deviceId:', deviceId);
     const entityId = await new Promise((resolve, reject) =>
-      this.api.call('Add', {
-        typeName: 'MediaFile',
-        entity: {
-          device: { id: deviceId },
-          ...(driverId ? { driver: { id: driverId } } : {}),
-          fromDate: eventDateTime,
-          toDate: eventDateTime,
-          mediaType: 'Image',
-          name: name + '.jpg',
-          solutionId: 'IncidentReport',
-          ...(exceptionEventId ? { metaData: { exceptionEventId } } : {})
-        }
-      }, resolve, reject)
+      this.api.call('Add', { typeName: 'MediaFile', entity }, resolve, reject)
     );
 
     // Step 2: POST the binary via UploadMediaFile endpoint
