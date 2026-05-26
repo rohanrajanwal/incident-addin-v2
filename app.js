@@ -1746,23 +1746,28 @@ populateContextScreen() {
     // Resize/compress before upload
     const resized = await this._resizeImage(base64DataUrl);
 
-    // Step 1: Create the MediaFile entity record
-    // DIAGNOSTIC: no metaData — testing if that field causes the GenericException
+    // File name must be lowercase and unique per database — prefix with event timestamp
+    const ts = new Date(eventDateTime).getTime();
+    const fileName = (ts + '_' + name + '.jpg').toLowerCase();
+
+    // Step 1: Create the MediaFile entity (metadata only — no binary data here)
     const entity = {
       device: { id: deviceId },
       ...(driverId ? { driver: { id: driverId } } : {}),
       fromDate: eventDateTime,
       toDate: eventDateTime,
-      mediaType: 'Image',
-      name: name + '.jpg',
+      name: fileName,
       solutionId: 'IncidentReport',
+      ...(exceptionEventId ? { metaData: { exceptionEventId } } : {})
     };
     console.log('[Submit] MediaFile entity:', JSON.stringify(entity));
     const entityId = await new Promise((resolve, reject) =>
       this.api.call('Add', { typeName: 'MediaFile', entity }, resolve, reject)
     );
 
-    // Step 2: POST the binary via UploadMediaFile endpoint
+    // Step 2: Upload the binary via multipart POST to /apiv1/
+    // The JSON-RPC params go in a form field named 'JSON-RPC' (URL-encoded).
+    // The file goes in a form field named exactly after the entity's name.
     if (!entityId || !credentials || !server) {
       console.warn('[Submit] Skipping binary upload — missing credentials or server');
       return entityId;
@@ -1776,15 +1781,15 @@ populateContextScreen() {
       for (let i = 0; i < byteChars.length; i++) byteArray[i] = byteChars.charCodeAt(i);
       const blob = new Blob([byteArray], { type: mimeType });
 
+      const host = server.startsWith('http') ? new URL(server).hostname : server;
+      const params = { method: 'UploadMediaFile', params: { credentials, mediaFile: { id: entityId } } };
       const formData = new FormData();
-      formData.append('file', blob, name + '.jpg'); // must match entity name
+      formData.append('JSON-RPC', encodeURIComponent(JSON.stringify(params)));
+      formData.append(fileName, blob, fileName);
 
-      const credStr = encodeURIComponent(JSON.stringify(credentials));
-      const mediaStr = encodeURIComponent(JSON.stringify({ id: entityId }));
-      await fetch(
-        `https://${server}/apiv1/UploadMediaFile?credentials=${credStr}&mediaFile=${mediaStr}`,
-        { method: 'POST', body: formData }
-      );
+      const resp = await fetch(`https://${host}/apiv1/`, { method: 'POST', body: formData });
+      const json = await resp.json().catch(() => null);
+      if (json?.error) console.warn('[Submit] UploadMediaFile error:', json.error);
     } catch (e) {
       console.warn('[Submit] Binary upload failed (entity record still saved):', e);
     }
@@ -1793,7 +1798,9 @@ populateContextScreen() {
   },
 
   async uploadVideoFile(blob, name, deviceId, driverId, eventDateTime, exceptionEventId, server, credentials) {
-    // Create the MediaFile entity record for a video
+    const ts = new Date(eventDateTime).getTime();
+    const fileName = (ts + '_' + name + '.mp4').toLowerCase();
+
     const entityId = await new Promise((resolve, reject) =>
       this.api.call('Add', {
         typeName: 'MediaFile',
@@ -1802,8 +1809,7 @@ populateContextScreen() {
           ...(driverId ? { driver: { id: driverId } } : {}),
           fromDate: eventDateTime,
           toDate: eventDateTime,
-          mediaType: 'Video',
-          name: name + '.mp4',
+          name: fileName,
           solutionId: 'IncidentReport',
           ...(exceptionEventId ? { metaData: { exceptionEventId } } : {})
         }
@@ -1816,15 +1822,15 @@ populateContextScreen() {
     }
 
     try {
+      const host = server.startsWith('http') ? new URL(server).hostname : server;
+      const params = { method: 'UploadMediaFile', params: { credentials, mediaFile: { id: entityId } } };
       const formData = new FormData();
-      formData.append('file', blob, name);
+      formData.append('JSON-RPC', encodeURIComponent(JSON.stringify(params)));
+      formData.append(fileName, blob, fileName);
 
-      const credStr = encodeURIComponent(JSON.stringify(credentials));
-      const mediaStr = encodeURIComponent(JSON.stringify({ id: entityId }));
-      await fetch(
-        `https://${server}/apiv1/UploadMediaFile?credentials=${credStr}&mediaFile=${mediaStr}`,
-        { method: 'POST', body: formData }
-      );
+      const resp = await fetch(`https://${host}/apiv1/`, { method: 'POST', body: formData });
+      const json = await resp.json().catch(() => null);
+      if (json?.error) console.warn('[Submit] UploadMediaFile video error:', json.error);
     } catch (e) {
       console.warn('[Submit] Video binary upload failed (entity record still saved):', e);
     }
