@@ -867,9 +867,17 @@ const app = {
 
   // ---- Photo Capture ----
   showPhotoMenu(party, index) {
-    // Skip the custom overlay menu and use the native iOS file picker directly
-    // This gives "Take Photo" / "Photo Library" / "Browse" in one menu (no double-menu)
-    this._triggerPhotoInput(party, index, false);
+    if (this.api?.mobile?.exists()) {
+      // On Geotab Drive mobile: show our menu — "Take Photo" uses native camera API
+      // (no double-menu because takePicture() doesn't trigger an OS sheet)
+      this._showDocMenu(
+        () => this._triggerPhotoInput(party, index, true),
+        () => this._triggerPhotoInput(party, index, false)
+      );
+    } else {
+      // Desktop / dev: go straight to file input
+      this._triggerPhotoInput(party, index, false);
+    }
   },
 
   capturePhotoFromCamera(party, index) {
@@ -880,34 +888,69 @@ const app = {
     this._triggerPhotoInput(party, index, false);
   },
 
-  _triggerPhotoInput(party, index, useCamera) {
+  async _triggerPhotoInput(party, index, useCamera) {
+    // On Geotab Drive mobile, use the native camera API — avoids iOS permission issues
+    if (useCamera && this.api?.mobile?.exists() && typeof this.api.mobile.camera?.takePicture === 'function') {
+      try {
+        const dataUrl = await this.api.mobile.camera.takePicture();
+        if (dataUrl) {
+          const processed = await this._processPhotoDataUrl(dataUrl);
+          this.renderPhotoSlot(party, index, processed);
+          const arr = party === 'yours' ? this.reportData.photosYours : this.reportData.photosThird;
+          arr[index] = processed;
+        }
+      } catch (e) {
+        console.warn('[Photo] Native camera failed, falling back to file input:', e);
+        this._fileInputPhoto(false, (file) => this._storePhotoFile(file, party, index));
+      }
+      return;
+    }
+    // Library picker or desktop fallback
+    this._fileInputPhoto(useCamera, (file) => this._storePhotoFile(file, party, index));
+  },
+
+  _fileInputPhoto(useCamera, onFile) {
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = 'image/*';
     if (useCamera) input.capture = 'environment';
     input.style.cssText = 'position:fixed;top:-9999px;left:-9999px;opacity:0;';
-
     input.onchange = (e) => {
-      const file = e.target.files[0];
-      if (file) {
-        // Render immediately using a blob URL — works reliably on iOS without large base64 strings
-        const blobUrl = URL.createObjectURL(file);
-        this.renderPhotoSlot(party, index, blobUrl);
-
-        // Read base64 in background for storage/upload
-        const reader = new FileReader();
-        reader.onload = () => {
-          const arr = party === 'yours' ? this.reportData.photosYours : this.reportData.photosThird;
-          arr[index] = reader.result;
-        };
-        reader.readAsDataURL(file);
-      }
+      if (e.target.files[0]) onFile(e.target.files[0]);
       if (input.parentNode) input.parentNode.removeChild(input);
     };
-
-    // Append to DOM before click — required for iOS WKWebView
     document.body.appendChild(input);
     input.click();
+  },
+
+  _storePhotoFile(file, party, index) {
+    const blobUrl = URL.createObjectURL(file);
+    this.renderPhotoSlot(party, index, blobUrl);
+    const reader = new FileReader();
+    reader.onload = () => {
+      const arr = party === 'yours' ? this.reportData.photosYours : this.reportData.photosThird;
+      arr[index] = reader.result;
+    };
+    reader.readAsDataURL(file);
+  },
+
+  async _processPhotoDataUrl(dataUrl) {
+    // Drive on iOS can return octet-stream — draw to canvas to get a real JPEG data URL
+    if (!dataUrl.startsWith('data:image/')) {
+      return new Promise((resolve) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          canvas.width = img.naturalWidth;
+          canvas.height = img.naturalHeight;
+          canvas.getContext('2d').drawImage(img, 0, 0);
+          resolve(canvas.toDataURL('image/jpeg', 0.85));
+        };
+        img.onerror = () => resolve(dataUrl);
+        img.src = dataUrl;
+      });
+    }
+    return dataUrl;
   },
 
   renderPhotoSlot(party, index, dataUrl) {
@@ -1583,7 +1626,10 @@ populateContextScreen() {
           item.data, item.name, deviceId, driverId,
           dateTime, exceptionEventId, server, credentials
         );
-        if (id) mediaFileIds.push({ id, name: item.name });
+        if (id) {
+          mediaFileIds.push({ id, name: item.name });
+          if (exceptionEventId) await this._attachMediaToException(id, exceptionEventId);
+        }
       } catch (e) {
         const msg = (e?.message || e?.name || String(e) || 'unknown') + (e ? ' | raw: ' + JSON.stringify(e) : '');
         console.error('[Submit] Upload failed for', item.name, JSON.stringify(e), e);
@@ -1599,7 +1645,10 @@ populateContextScreen() {
           this._sceneVideoBlob, 'SceneVideo',
           deviceId, driverId, dateTime, exceptionEventId, server, credentials
         );
-        if (id) mediaFileIds.push({ id, name: 'SceneVideo' });
+        if (id) {
+          mediaFileIds.push({ id, name: 'SceneVideo' });
+          if (exceptionEventId) await this._attachMediaToException(id, exceptionEventId);
+        }
       } catch (e) {
         console.warn('[Submit] Scene video upload failed:', e);
       }
@@ -1746,19 +1795,12 @@ populateContextScreen() {
     // Resize/compress before upload
     const resized = await this._resizeImage(base64DataUrl);
 
-    // File name must be lowercase and unique per database — prefix with event timestamp
-    const ts = new Date(eventDateTime).getTime();
-    const fileName = (ts + '_' + name + '.jpg').toLowerCase();
+    const fileName = this._randomFileName('jpg');
 
-    // Step 1: Create the MediaFile entity (metadata only — no binary data here)
+    // Step 1: Create the MediaFile entity (metadata only — minimal fields per official pattern)
     const entity = {
-      device: { id: deviceId },
-      ...(driverId ? { driver: { id: driverId } } : {}),
-      fromDate: eventDateTime,
-      toDate: eventDateTime,
       name: fileName,
       solutionId: 'IncidentReport',
-      ...(exceptionEventId ? { metaData: { exceptionEventId } } : {})
     };
     console.log('[Submit] MediaFile entity:', JSON.stringify(entity));
     const entityId = await new Promise((resolve, reject) =>
@@ -1798,21 +1840,12 @@ populateContextScreen() {
   },
 
   async uploadVideoFile(blob, name, deviceId, driverId, eventDateTime, exceptionEventId, server, credentials) {
-    const ts = new Date(eventDateTime).getTime();
-    const fileName = (ts + '_' + name + '.mp4').toLowerCase();
+    const fileName = this._randomFileName('mp4');
 
     const entityId = await new Promise((resolve, reject) =>
       this.api.call('Add', {
         typeName: 'MediaFile',
-        entity: {
-          device: { id: deviceId },
-          ...(driverId ? { driver: { id: driverId } } : {}),
-          fromDate: eventDateTime,
-          toDate: eventDateTime,
-          name: fileName,
-          solutionId: 'IncidentReport',
-          ...(exceptionEventId ? { metaData: { exceptionEventId } } : {})
-        }
+        entity: { name: fileName, solutionId: 'IncidentReport' }
       }, resolve, reject)
     );
 
@@ -1836,6 +1869,22 @@ populateContextScreen() {
     }
 
     return entityId;
+  },
+
+  async _attachMediaToException(mediaFileId, exceptionEventId) {
+    try {
+      await new Promise((resolve, reject) =>
+        this.api.call('Add', {
+          typeName: 'ExceptionEventAttachment',
+          entity: {
+            exceptionEvent: { id: exceptionEventId },
+            mediaFileAttachment: { id: mediaFileId }
+          }
+        }, resolve, reject)
+      );
+    } catch (e) {
+      console.warn('[Submit] ExceptionEventAttachment failed for', mediaFileId, e);
+    }
   },
 
   async _getApiCredentials() {
@@ -1863,6 +1912,13 @@ populateContextScreen() {
       };
     }
     return null;
+  },
+
+  _randomFileName(ext) {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    let name = '';
+    for (let i = 0; i < 16; i++) name += chars[Math.floor(Math.random() * chars.length)];
+    return name + '.' + ext;
   },
 
   async _resizeImage(base64DataUrl, maxWidth = 1280, quality = 0.75) {
