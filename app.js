@@ -1536,7 +1536,12 @@ populateContextScreen() {
       return;
     }
 
-    const { addInDataId, addInDataError, mediaFileIds = [], uploadErrors = [], exceptionEventId, mediaFileSupported, mediaFileSample, deviceId } = receipt;
+    const {
+      addInDataId, addInDataError,
+      mediaFileIds = [], uploadErrors = [], binaryErrors = [], attachmentErrors = [],
+      commentOk, commentError,
+      exceptionEventId, mediaFileSupported, mediaFileSample, deviceId
+    } = receipt;
     const lines = [];
 
     lines.push(`<strong>Device ID:</strong> ${deviceId || '?'}`);
@@ -1551,16 +1556,37 @@ populateContextScreen() {
       lines.push(`<strong>AddInData:</strong> <span style="color:var(--text-muted)">Skipped${errDetail}</span>`);
     }
 
-    if (mediaFileIds.length > 0) {
-      lines.push(`<strong>Files uploaded (${mediaFileIds.length}):</strong>`);
-      mediaFileIds.forEach(f => lines.push(`&nbsp;&nbsp;• ${f.name}`));
+    // Per-step counts: MediaFile entity created vs binary uploaded vs attached to exception
+    const totalEntities = mediaFileIds.length;
+    const binaryOkCount = mediaFileIds.filter(f => f.binaryOk).length;
+    const attachOkCount = totalEntities - attachmentErrors.length;
+    if (totalEntities > 0) {
+      lines.push(`<strong>MediaFile records created:</strong> ${totalEntities}`);
+      lines.push(`<strong>Binary bytes uploaded:</strong> ${binaryOkCount} / ${totalEntities}${binaryOkCount === totalEntities ? ' ✓' : ' <span style="color:var(--error)">⚠</span>'}`);
+      if (exceptionEventId) {
+        lines.push(`<strong>Attached to exception event:</strong> ${attachOkCount} / ${totalEntities}${attachOkCount === totalEntities ? ' ✓' : ' <span style="color:var(--error)">⚠</span>'}`);
+      }
+      lines.push(`<strong>Files:</strong>`);
+      mediaFileIds.forEach(f => lines.push(`&nbsp;&nbsp;• ${f.name}${f.binaryOk ? '' : ' <span style="color:var(--error)">(no binary)</span>'}`));
     } else {
       lines.push(`<strong>Files uploaded:</strong> None`);
     }
 
+    if (exceptionEventId) {
+      lines.push(`<strong>Comment on exception:</strong> ${commentOk ? 'added ✓' : `<span style="color:var(--error)">failed — ${commentError || 'unknown'}</span>`}`);
+    }
+
     if (uploadErrors.length > 0) {
-      lines.push(`<strong style="color:var(--error)">Upload errors (${uploadErrors.length}):</strong>`);
+      lines.push(`<strong style="color:var(--error)">MediaFile.Add errors (${uploadErrors.length}):</strong>`);
       uploadErrors.slice(0, 5).forEach(e => lines.push(`<span style="font-size:13px;color:var(--error);word-break:break-all;display:block;padding:4px 0">&bull; ${e}</span>`));
+    }
+    if (binaryErrors.length > 0) {
+      lines.push(`<strong style="color:var(--error)">Binary upload errors (${binaryErrors.length}):</strong>`);
+      binaryErrors.slice(0, 5).forEach(e => lines.push(`<span style="font-size:13px;color:var(--error);word-break:break-all;display:block;padding:4px 0">&bull; ${e}</span>`));
+    }
+    if (attachmentErrors.length > 0) {
+      lines.push(`<strong style="color:var(--error)">ExceptionEventAttachment errors (${attachmentErrors.length}):</strong>`);
+      attachmentErrors.slice(0, 5).forEach(e => lines.push(`<span style="font-size:13px;color:var(--error);word-break:break-all;display:block;padding:4px 0">&bull; ${e}</span>`));
     }
 
     el.innerHTML = lines.join('<br>');
@@ -1615,24 +1641,31 @@ populateContextScreen() {
       this.reportData.propertyDamageInfo.photo && { data: this.reportData.propertyDamageInfo.photo,    name: 'PropertyDamage_Photo' },
     ].filter(Boolean);
 
-    // 3. Upload each file as MediaFile dated to the exception time so it appears on the exception page
-    const mediaFileIds = [];
-    const uploadErrors = [];
+    // 3. Upload each file as MediaFile + binary + ExceptionEventAttachment.
+    // Track each step independently so the receipt can show exactly what succeeded/failed.
+    const mediaFileIds = [];          // entity records that exist server-side
+    const uploadErrors = [];          // MediaFile.Add throws
+    const binaryErrors = [];          // binary POST failed (entity exists but no bytes)
+    const attachmentErrors = [];      // ExceptionEventAttachment failed (binary exists but not linked to event)
     for (let i = 0; i < uploads.length; i++) {
       const item = uploads[i];
       this.setEl('submitStatus', `Uploading ${i + 1} of ${uploads.length}: ${item.name}…`);
       try {
-        const id = await this.uploadMediaFile(
+        const result = await this.uploadMediaFile(
           item.data, item.name, deviceId, driverId,
           dateTime, exceptionEventId, server, credentials
         );
-        if (id) {
-          mediaFileIds.push({ id, name: item.name });
-          if (exceptionEventId) await this._attachMediaToException(id, exceptionEventId);
+        if (result?.id) {
+          mediaFileIds.push({ id: result.id, name: item.name, binaryOk: result.binaryOk });
+          if (!result.binaryOk) binaryErrors.push(`${item.name}: ${result.binaryError || 'unknown'}`);
+          if (exceptionEventId) {
+            const att = await this._attachMediaToException(result.id, exceptionEventId);
+            if (!att.ok) attachmentErrors.push(`${item.name}: ${att.error}`);
+          }
         }
       } catch (e) {
         const msg = (e?.message || e?.name || String(e) || 'unknown') + (e ? ' | raw: ' + JSON.stringify(e) : '');
-        console.error('[Submit] Upload failed for', item.name, JSON.stringify(e), e);
+        console.error('[Submit] MediaFile.Add failed for', item.name, JSON.stringify(e), e);
         uploadErrors.push(`${item.name}: ${msg}`);
       }
     }
@@ -1641,13 +1674,17 @@ populateContextScreen() {
     if (this.reportData.sceneVideo && this._sceneVideoBlob) {
       this.setEl('submitStatus', 'Uploading scene video…');
       try {
-        const id = await this.uploadVideoFile(
+        const result = await this.uploadVideoFile(
           this._sceneVideoBlob, 'SceneVideo',
           deviceId, driverId, dateTime, exceptionEventId, server, credentials
         );
-        if (id) {
-          mediaFileIds.push({ id, name: 'SceneVideo' });
-          if (exceptionEventId) await this._attachMediaToException(id, exceptionEventId);
+        if (result?.id) {
+          mediaFileIds.push({ id: result.id, name: 'SceneVideo', binaryOk: result.binaryOk });
+          if (!result.binaryOk) binaryErrors.push(`SceneVideo: ${result.binaryError || 'unknown'}`);
+          if (exceptionEventId) {
+            const att = await this._attachMediaToException(result.id, exceptionEventId);
+            if (!att.ok) attachmentErrors.push(`SceneVideo: ${att.error}`);
+          }
         }
       } catch (e) {
         console.warn('[Submit] Scene video upload failed:', e);
@@ -1725,23 +1762,36 @@ populateContextScreen() {
     }
     } // end if (resolvedAddInId)
 
-    // 5. Add report text as a comment on the ExceptionEvent so it's visible in the Geotab UI
+    // 5. Add report text as an ExceptionEventComment so it's visible on the exception page.
+    // (Old code used Set ExceptionEvent { comment } — that field doesn't exist on the entity;
+    // the correct approach is Add ExceptionEventComment, matching the official collision-form.)
+    let commentOk = false;
+    let commentError = null;
     if (exceptionEventId) {
       this.setEl('submitStatus', 'Adding comment to exception…');
       try {
         await new Promise((resolve, reject) =>
-          this.api.call('Set', {
-            typeName: 'ExceptionEvent',
-            entity: { id: exceptionEventId, comment: reportText }
+          this.api.call('Add', {
+            typeName: 'ExceptionEventComment',
+            entity: {
+              exceptionEvent: { id: exceptionEventId },
+              text: reportText
+            }
           }, resolve, reject)
         );
+        commentOk = true;
       } catch (e) {
-        // comment field may not be writable on all server versions — non-fatal
-        console.warn('[Submit] Could not set ExceptionEvent comment:', e);
+        commentError = (e?.message || e?.name || JSON.stringify(e) || 'unknown').slice(0, 300);
+        console.warn('[Submit] ExceptionEventComment add failed:', e);
       }
     }
 
-    return { addInDataId, addInDataError, mediaFileIds, uploadErrors, exceptionEventId, mediaFileSupported, mediaFileSample, deviceId };
+    return {
+      addInDataId, addInDataError,
+      mediaFileIds, uploadErrors, binaryErrors, attachmentErrors,
+      commentOk, commentError,
+      exceptionEventId, mediaFileSupported, mediaFileSample, deviceId
+    };
   },
 
   // ---- Submission helpers ----
@@ -1818,6 +1868,8 @@ populateContextScreen() {
       return entityId;
     }
 
+    let binaryOk = false;
+    let binaryError = null;
     try {
       const base64 = resized.split(',')[1];
       const mimeType = resized.match(/data:([^;]+);/)?.[1] || 'image/jpeg';
@@ -1833,13 +1885,23 @@ populateContextScreen() {
       formData.append(fileName, blob, fileName);
 
       const resp = await fetch(`https://${host}/apiv1`, { method: 'POST', body: formData });
-      const json = await resp.json().catch(() => null);
-      if (json?.error) console.warn('[Submit] UploadMediaFile error:', json.error);
+      const text = await resp.text();
+      let json = null;
+      try { json = JSON.parse(text); } catch (e) { /* not JSON */ }
+      if (!resp.ok) {
+        binaryError = `HTTP ${resp.status}: ${text.slice(0, 300)}`;
+      } else if (json?.error) {
+        binaryError = JSON.stringify(json.error).slice(0, 500);
+      } else {
+        binaryOk = true;
+      }
+      if (binaryError) console.warn('[Submit] UploadMediaFile binary error:', binaryError);
     } catch (e) {
-      console.warn('[Submit] Binary upload failed (entity record still saved):', e);
+      binaryError = (e?.message || String(e)).slice(0, 300);
+      console.warn('[Submit] Binary upload threw:', e);
     }
 
-    return entityId;
+    return { id: entityId, binaryOk, binaryError };
   },
 
   async uploadVideoFile(blob, name, deviceId, driverId, eventDateTime, exceptionEventId, server, credentials) {
@@ -1854,9 +1916,11 @@ populateContextScreen() {
 
     if (!entityId || !credentials || !server) {
       console.warn('[Submit] Skipping video binary upload — missing credentials or server');
-      return entityId;
+      return { id: entityId, binaryOk: false, binaryError: 'missing credentials or server' };
     }
 
+    let binaryOk = false;
+    let binaryError = null;
     try {
       const host = server.includes('://') ? new URL(server).hostname : server;
       const params = { method: 'UploadMediaFile', params: { credentials, mediaFile: { id: entityId } } };
@@ -1865,18 +1929,24 @@ populateContextScreen() {
       formData.append(fileName, blob, fileName);
 
       const resp = await fetch(`https://${host}/apiv1`, { method: 'POST', body: formData });
-      const json = await resp.json().catch(() => null);
-      if (json?.error) console.warn('[Submit] UploadMediaFile video error:', json.error);
+      const text = await resp.text();
+      let json = null;
+      try { json = JSON.parse(text); } catch (e) { /* not JSON */ }
+      if (!resp.ok) binaryError = `HTTP ${resp.status}: ${text.slice(0, 300)}`;
+      else if (json?.error) binaryError = JSON.stringify(json.error).slice(0, 500);
+      else binaryOk = true;
+      if (binaryError) console.warn('[Submit] UploadMediaFile video binary error:', binaryError);
     } catch (e) {
-      console.warn('[Submit] Video binary upload failed (entity record still saved):', e);
+      binaryError = (e?.message || String(e)).slice(0, 300);
+      console.warn('[Submit] Video binary upload threw:', e);
     }
 
-    return entityId;
+    return { id: entityId, binaryOk, binaryError };
   },
 
   async _attachMediaToException(mediaFileId, exceptionEventId) {
     try {
-      await new Promise((resolve, reject) =>
+      const attachmentId = await new Promise((resolve, reject) =>
         this.api.call('Add', {
           typeName: 'ExceptionEventAttachment',
           entity: {
@@ -1885,8 +1955,11 @@ populateContextScreen() {
           }
         }, resolve, reject)
       );
+      return { ok: true, attachmentId };
     } catch (e) {
+      const msg = (e?.message || e?.name || JSON.stringify(e) || 'unknown').slice(0, 300);
       console.warn('[Submit] ExceptionEventAttachment failed for', mediaFileId, e);
+      return { ok: false, error: msg };
     }
   },
 
