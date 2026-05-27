@@ -2025,74 +2025,133 @@ populateContextScreen() {
 
   formatReportText() {
     const d = this.reportData;
-    const wp = d.witnesses.phone;
-    const op = d.propertyDamageInfo.ownerPhone;
-    return [
-      '=== INCIDENT REPORT ===',
-      `Date: ${new Date().toISOString()}`,
-      `Driver: ${this.state?.driver?.name || 'Unknown'}`,
-      `Vehicle: ${d.context.vehicleName || 'Unknown'}`,
-      `VIN: ${d.context.vin || 'N/A'}`,
-      '',
-      '--- Qualifying ---',
-      `Third Party: ${d.answers.thirdParty ? 'Yes' : 'No'}`,
-      `At Scene: ${d.answers.atScene ? 'Yes' : 'No'}`,
-      `Property Damage: ${d.answers.propertyDamage ? 'Yes' : 'No'}`,
-      '',
-      '--- Damage Assessment ---',
-      `1st Party Zones: ${d.damageZones.first.join(', ') || 'None'}`,
-      `1st Party Severity: ${d.severityFirst || 'Not specified'}`,
-      `3rd Party Type: ${d.answers.thirdPartyType || 'N/A'}`,
-      `3rd Party Zones: ${d.damageZones.third.join(', ') || 'None'}`,
-      `3rd Party Severity: ${d.severityThird || 'Not specified'}`,
-      '',
-      '--- Third Party Info ---',
-      `Name: ${d.ocr.name || 'N/A'}`,
-      `Policy: ${d.ocr.policy || 'N/A'}`,
-      `VIN: ${d.ocr.vin || 'N/A'}`,
-      `Plate: ${d.ocr.plate || 'N/A'}`,
-      `Driver's License Captured: ${d.docLicense ? 'Yes' : 'No'}`,
-      `Insurance Card Captured: ${d.docInsurance ? 'Yes' : 'No'}`,
-      `Vehicle Tag Captured: ${d.docTag ? 'Yes' : 'No'}`,
-      `3rd Party Phone: ${d.thirdPartyPhone.number ? `${d.thirdPartyPhone.countryCode} ${d.thirdPartyPhone.number}` : 'N/A'}`,
-      '',
-      '--- Narrative ---',
-      d.narrative || 'No description provided',
-      '',
-      '--- Occupancy & Injuries ---',
-      `Your Vehicle (People): ${d.occupancy.yourVehicle}`,
-      `Your Vehicle (Injuries): ${d.occupancy.yourInjuries === null ? 'Not specified' : d.occupancy.yourInjuries ? 'Yes' : 'No'}`,
-      `3rd Party Vehicle (People): ${d.occupancy.thirdVehicle}`,
-      `3rd Party Vehicle (Injuries): ${d.occupancy.thirdInjuries === null ? 'Not specified' : d.occupancy.thirdInjuries ? 'Yes' : 'No'}`,
-      '',
-      '--- Witnesses ---',
-      `Has Witnesses: ${d.witnesses.hasWitnesses === null ? 'Not specified' : d.witnesses.hasWitnesses ? 'Yes' : 'No'}`,
-      ...(d.witnesses.hasWitnesses ? [
-        `Witness Name: ${d.witnesses.name || 'N/A'}`,
-        `Witness Phone: ${wp.number ? `${wp.countryCode} ${wp.number}` : 'N/A'}`
-      ] : []),
-      '',
-      '--- Police Report ---',
-      `Filed: ${d.policeReport.filed === null ? 'Not specified' : d.policeReport.filed ? 'Yes' : 'No'}`,
-      ...(d.policeReport.filed ? [
-        `Document: ${d.policeReport.document ? 'Attached' : 'Not provided'}`,
-        `Violations: ${d.policeReport.violations === null ? 'Not specified' : d.policeReport.violations ? 'Yes' : 'No'}`,
-        `Citations: ${d.policeReport.citations === null ? 'Not specified' : d.policeReport.citations ? 'Yes' : 'No'}`
-      ] : []),
-      '',
-      '--- Property Damage ---',
-      `Damaged: ${d.propertyDamageInfo.damaged === null ? 'Not specified' : d.propertyDamageInfo.damaged ? 'Yes' : 'No'}`,
-      ...(d.propertyDamageInfo.damaged ? [
-        `Property: ${d.propertyDamageInfo.propertyName || 'N/A'}`,
-        `Address: ${d.propertyDamageInfo.address || 'N/A'}`,
-        `Owner: ${d.propertyDamageInfo.ownerName || 'N/A'}`,
-        `Owner Phone: ${op.number ? `${op.countryCode} ${op.number}` : 'N/A'}`
-      ] : []),
-      '',
-      '--- AI Corrections ---',
-      d.corrections.length ? JSON.stringify(d.corrections) : 'None',
-      '=== END REPORT ==='
-    ].join('\n');
+    const wp = d.witnesses.phone || {};
+    const op = d.propertyDamageInfo.ownerPhone || {};
+    const yn = (v) => v === null || v === undefined ? 'Not specified' : v ? 'Yes' : 'No';
+    const phone = (p) => p?.number ? `${p.countryCode || '+1'} ${p.number}` : 'N/A';
+    const severityDesc = { Minor: 'Minor (scratches, scuffs, or small dents — vehicle fully driveable)', Functional: 'Functional (broken glass, hanging bumpers, or light damage — may still be driveable)', Disabling: 'Disabling (structural/frame damage, wheel misalignment, or airbag deployment — not driveable)' };
+    const now = new Date();
+    const ts = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+
+    const lines = [];
+    lines.push('INCIDENT REPORT');
+    lines.push(`Submitted ${ts} by ${this.state?.driver?.name || 'Unknown'}`);
+    lines.push(`Vehicle: ${d.context.vehicleName || 'Unknown'}${d.context.vin ? ' (VIN ' + d.context.vin + ')' : ''}`);
+    if (d.context.address) lines.push(`Location: ${d.context.address}`);
+    if (d.context.speed) lines.push(`Speed at event: ${d.context.speed}`);
+    if (d.context.gForce) lines.push(`G-force: ${d.context.gForce}`);
+    lines.push('');
+
+    lines.push('— Qualifying —');
+    lines.push('Q: Does the collision involve a third party driver?');
+    lines.push(`A: ${yn(d.answers.thirdParty)}`);
+    if (d.answers.thirdParty) {
+      lines.push('Q: Is the third party driver at the scene?');
+      lines.push(`A: ${yn(d.answers.atScene)}`);
+    }
+    lines.push('Q: Is there any damage to property (buildings, fences, etc.)?');
+    lines.push(`A: ${yn(d.answers.propertyDamage)}`);
+    lines.push('');
+
+    lines.push('— Damage: Your Vehicle —');
+    lines.push('Q: Which areas are damaged?');
+    lines.push(`A: ${d.damageZones.first.length ? d.damageZones.first.join(', ') : 'None selected'}`);
+    lines.push('Q: How severe is the damage?');
+    lines.push(`A: ${severityDesc[d.severityFirst] || d.severityFirst || 'Not specified'}`);
+    lines.push('');
+
+    if (d.answers.thirdParty) {
+      lines.push('— Damage: Third Party Vehicle —');
+      if (d.answers.thirdPartyType) {
+        lines.push('Q: What type of vehicle?');
+        lines.push(`A: ${d.answers.thirdPartyType}`);
+      }
+      lines.push('Q: Which areas are damaged?');
+      lines.push(`A: ${d.damageZones.third.length ? d.damageZones.third.join(', ') : 'None selected'}`);
+      lines.push('Q: How severe is the damage?');
+      lines.push(`A: ${severityDesc[d.severityThird] || d.severityThird || 'Not specified'}`);
+      lines.push('');
+
+      const docs = [];
+      if (d.docLicense) docs.push("Driver's License");
+      if (d.docInsurance) docs.push('Insurance Card');
+      if (d.docTag) docs.push('Vehicle Tag / Plate');
+      lines.push('— Third Party Driver Info —');
+      if (d.ocr.name) { lines.push("Q: Driver's name?"); lines.push(`A: ${d.ocr.name}`); }
+      if (d.ocr.policy) { lines.push('Q: Insurance policy number?'); lines.push(`A: ${d.ocr.policy}`); }
+      if (d.ocr.vin) { lines.push('Q: Vehicle VIN?'); lines.push(`A: ${d.ocr.vin}`); }
+      if (d.ocr.plate) { lines.push('Q: License plate?'); lines.push(`A: ${d.ocr.plate}`); }
+      if (d.thirdPartyPhone?.number) { lines.push('Q: Phone number?'); lines.push(`A: ${phone(d.thirdPartyPhone)}`); }
+      if (docs.length) { lines.push('Q: Documents captured?'); lines.push(`A: ${docs.join(', ')}`); }
+      if (!d.ocr.name && !d.ocr.policy && !d.ocr.vin && !d.ocr.plate && !d.thirdPartyPhone?.number && !docs.length) {
+        lines.push('A: No third party info collected');
+      }
+      lines.push('');
+    }
+
+    lines.push('— Narrative —');
+    lines.push('Q: What happened?');
+    lines.push(`A: ${d.narrative || 'No description provided'}`);
+    lines.push('');
+
+    lines.push('— Occupancy & Injuries —');
+    const yourInj = d.occupancy.yourInjuries === null ? '' : d.occupancy.yourInjuries ? ' — injuries reported' : ' — no injuries';
+    lines.push('Q: Total people in your vehicle?');
+    lines.push(`A: ${d.occupancy.yourVehicle || 1}${yourInj}`);
+    if (d.answers.thirdParty) {
+      const thirdInj = d.occupancy.thirdInjuries === null ? '' : d.occupancy.thirdInjuries ? ' — injuries reported' : ' — no injuries';
+      lines.push('Q: Total people in the third party vehicle?');
+      lines.push(`A: ${d.occupancy.thirdVehicle || 1}${thirdInj}`);
+    }
+    lines.push('');
+
+    lines.push('— Witnesses —');
+    lines.push('Q: Were there any witnesses?');
+    if (d.witnesses.hasWitnesses) {
+      const wInfo = [d.witnesses.name, phone(wp) !== 'N/A' ? phone(wp) : null].filter(Boolean).join(', ');
+      lines.push(`A: Yes${wInfo ? ' — ' + wInfo : ''}`);
+    } else {
+      lines.push(`A: ${yn(d.witnesses.hasWitnesses)}`);
+    }
+    lines.push('');
+
+    lines.push('— Police Report —');
+    lines.push('Q: Was a police report filed?');
+    if (d.policeReport.filed) {
+      lines.push(`A: Yes${d.policeReport.document ? ' (document attached)' : ''}`);
+      lines.push('Q: Were any violations cited?');
+      lines.push(`A: ${yn(d.policeReport.violations)}`);
+      lines.push('Q: Was a citation issued?');
+      lines.push(`A: ${yn(d.policeReport.citations)}`);
+    } else {
+      lines.push(`A: ${yn(d.policeReport.filed)}`);
+    }
+    lines.push('');
+
+    if (d.answers.propertyDamage || d.propertyDamageInfo.damaged) {
+      lines.push('— Property Damage —');
+      if (d.propertyDamageInfo.propertyName) { lines.push('Q: What property was damaged?'); lines.push(`A: ${d.propertyDamageInfo.propertyName}`); }
+      if (d.propertyDamageInfo.address) { lines.push('Q: Property address?'); lines.push(`A: ${d.propertyDamageInfo.address}`); }
+      if (d.propertyDamageInfo.ownerName) { lines.push('Q: Property owner?'); lines.push(`A: ${d.propertyDamageInfo.ownerName}${op.number ? ', ' + phone(op) : ''}`); }
+      if (d.propertyDamageInfo.photo) lines.push('Photo of property damage attached.');
+      lines.push('');
+    }
+
+    const photoCount = (d.photosYours || []).filter(Boolean).length + (d.photosThird || []).filter(Boolean).length;
+    const docCount = [d.docLicense, d.docInsurance, d.docTag].filter(Boolean).length;
+    const policeCount = [d.policeReport.document, d.policeReport.citationDoc].filter(Boolean).length;
+    const parts = [];
+    if (photoCount) parts.push(`${photoCount} vehicle photo${photoCount > 1 ? 's' : ''}`);
+    if (docCount) parts.push(`${docCount} third-party document${docCount > 1 ? 's' : ''}`);
+    if (policeCount) parts.push(`${policeCount} police report document${policeCount > 1 ? 's' : ''}`);
+    if (d.propertyDamageInfo.photo) parts.push('1 property damage photo');
+    if (d.sceneVideo) parts.push('1 scene video');
+    if (parts.length) {
+      lines.push('— Attachments —');
+      lines.push(parts.join(', ') + ' (see attached files on this event)');
+    }
+
+    return lines.join('\n');
   },
 
   // ---- Offline / Persistence ----
