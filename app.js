@@ -2025,24 +2025,41 @@ populateContextScreen() {
 
   formatReportText() {
     const d = this.reportData;
+    const ctx = d.context || {};
     const wp = d.witnesses.phone || {};
     const op = d.propertyDamageInfo.ownerPhone || {};
     const yn = (v) => v === null || v === undefined ? 'Not specified' : v ? 'Yes' : 'No';
     const phone = (p) => p?.number ? `${p.countryCode || '+1'} ${p.number}` : 'N/A';
     const severityDesc = { Minor: 'Minor (scratches, scuffs, or small dents — vehicle fully driveable)', Functional: 'Functional (broken glass, hanging bumpers, or light damage — may still be driveable)', Disabling: 'Disabling (structural/frame damage, wheel misalignment, or airbag deployment — not driveable)' };
+    const fmtDate = (dt) => {
+      if (!dt) return null;
+      const t = dt instanceof Date ? dt : new Date(dt);
+      if (isNaN(t)) return null;
+      return t.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) + ' ' +
+             t.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+    };
     const now = new Date();
     const ts = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
 
     const lines = [];
     lines.push('INCIDENT REPORT');
     lines.push(`Submitted ${ts} by ${this.state?.driver?.name || 'Unknown'}`);
-    lines.push(`Vehicle: ${d.context.vehicleName || 'Unknown'}${d.context.vin ? ' (VIN ' + d.context.vin + ')' : ''}`);
-    if (d.context.address) lines.push(`Location: ${d.context.address}`);
-    if (d.context.speed) lines.push(`Speed at event: ${d.context.speed}`);
-    if (d.context.gForce) lines.push(`G-force: ${d.context.gForce}`);
+    lines.push(`Vehicle: ${this.state?.device?.name || 'Unknown'}`);
     lines.push('');
 
-    lines.push('— Qualifying —');
+    // Incident details (telematics data — auto-filled, not entered by driver)
+    lines.push('— Incident Details (from telematics) —');
+    lines.push(`Date / Time: ${fmtDate(ctx.eventTime) || '—'}`);
+    lines.push(`Location: ${ctx.locationStr || '—'}`);
+    if (ctx.latitude && ctx.longitude) lines.push(`GPS: ${ctx.latitude.toFixed(5)}, ${ctx.longitude.toFixed(5)}`);
+    const speedMph = ctx.speedKmh != null ? Math.round(ctx.speedKmh * 0.621371) : null;
+    lines.push(`Speed at event: ${speedMph != null ? speedMph + ' mph (' + Math.round(ctx.speedKmh) + ' km/h)' : '—'}`);
+    lines.push(`G-force: ${ctx.gForce != null ? ctx.gForce.toFixed(2) + ' G' : '—'}`);
+    lines.push(`Weather: ${ctx.weather || '— (pending AI analysis)'}`);
+    lines.push(`Road conditions: ${ctx.road || '— (pending AI analysis)'}`);
+    lines.push('');
+
+    lines.push('— Qualifying Questions —');
     lines.push('Q: Does the collision involve a third party driver?');
     lines.push(`A: ${yn(d.answers.thirdParty)}`);
     if (d.answers.thirdParty) {
@@ -2077,79 +2094,72 @@ populateContextScreen() {
       if (d.docInsurance) docs.push('Insurance Card');
       if (d.docTag) docs.push('Vehicle Tag / Plate');
       lines.push('— Third Party Driver Info —');
-      if (d.ocr.name) { lines.push("Q: Driver's name?"); lines.push(`A: ${d.ocr.name}`); }
-      if (d.ocr.policy) { lines.push('Q: Insurance policy number?'); lines.push(`A: ${d.ocr.policy}`); }
-      if (d.ocr.vin) { lines.push('Q: Vehicle VIN?'); lines.push(`A: ${d.ocr.vin}`); }
-      if (d.ocr.plate) { lines.push('Q: License plate?'); lines.push(`A: ${d.ocr.plate}`); }
-      if (d.thirdPartyPhone?.number) { lines.push('Q: Phone number?'); lines.push(`A: ${phone(d.thirdPartyPhone)}`); }
-      if (docs.length) { lines.push('Q: Documents captured?'); lines.push(`A: ${docs.join(', ')}`); }
-      if (!d.ocr.name && !d.ocr.policy && !d.ocr.vin && !d.ocr.plate && !d.thirdPartyPhone?.number && !docs.length) {
-        lines.push('A: No third party info collected');
-      }
+      lines.push(`Name: ${d.ocr.name || '—'}`);
+      lines.push(`Insurance policy #: ${d.ocr.policy || '—'}`);
+      lines.push(`Vehicle VIN: ${d.ocr.vin || '—'}`);
+      lines.push(`License plate: ${d.ocr.plate || '—'}`);
+      lines.push(`Phone: ${d.thirdPartyPhone?.number ? phone(d.thirdPartyPhone) : '—'}`);
+      lines.push(`Documents captured: ${docs.length ? docs.join(', ') : 'None'}`);
       lines.push('');
     }
 
-    lines.push('— Narrative —');
-    lines.push('Q: What happened?');
-    lines.push(`A: ${d.narrative || 'No description provided'}`);
+    lines.push('— Incident Description —');
+    lines.push(d.narrative || 'No description provided');
     lines.push('');
 
     lines.push('— Occupancy & Injuries —');
     const yourInj = d.occupancy.yourInjuries === null ? '' : d.occupancy.yourInjuries ? ' — injuries reported' : ' — no injuries';
-    lines.push('Q: Total people in your vehicle?');
-    lines.push(`A: ${d.occupancy.yourVehicle || 1}${yourInj}`);
+    lines.push(`Your vehicle: ${d.occupancy.yourVehicle || 1} person(s)${yourInj}`);
     if (d.answers.thirdParty) {
       const thirdInj = d.occupancy.thirdInjuries === null ? '' : d.occupancy.thirdInjuries ? ' — injuries reported' : ' — no injuries';
-      lines.push('Q: Total people in the third party vehicle?');
-      lines.push(`A: ${d.occupancy.thirdVehicle || 1}${thirdInj}`);
+      lines.push(`Third party vehicle: ${d.occupancy.thirdVehicle || 1} person(s)${thirdInj}`);
     }
     lines.push('');
 
     lines.push('— Witnesses —');
-    lines.push('Q: Were there any witnesses?');
     if (d.witnesses.hasWitnesses) {
-      const wInfo = [d.witnesses.name, phone(wp) !== 'N/A' ? phone(wp) : null].filter(Boolean).join(', ');
-      lines.push(`A: Yes${wInfo ? ' — ' + wInfo : ''}`);
+      lines.push(`Witnesses present: Yes`);
+      if (d.witnesses.name) lines.push(`Name: ${d.witnesses.name}`);
+      if (wp.number) lines.push(`Phone: ${phone(wp)}`);
     } else {
-      lines.push(`A: ${yn(d.witnesses.hasWitnesses)}`);
+      lines.push(`Witnesses present: ${yn(d.witnesses.hasWitnesses)}`);
     }
     lines.push('');
 
     lines.push('— Police Report —');
-    lines.push('Q: Was a police report filed?');
     if (d.policeReport.filed) {
-      lines.push(`A: Yes${d.policeReport.document ? ' (document attached)' : ''}`);
-      lines.push('Q: Were any violations cited?');
-      lines.push(`A: ${yn(d.policeReport.violations)}`);
-      lines.push('Q: Was a citation issued?');
-      lines.push(`A: ${yn(d.policeReport.citations)}`);
+      lines.push(`Report filed: Yes${d.policeReport.document ? ' (document attached)' : ''}`);
+      lines.push(`Violations cited: ${yn(d.policeReport.violations)}`);
+      lines.push(`Citation issued: ${yn(d.policeReport.citations)}${d.policeReport.citationDoc ? ' (document attached)' : ''}`);
     } else {
-      lines.push(`A: ${yn(d.policeReport.filed)}`);
+      lines.push(`Report filed: ${yn(d.policeReport.filed)}`);
     }
     lines.push('');
 
+    lines.push('— Property Damage —');
     if (d.answers.propertyDamage || d.propertyDamageInfo.damaged) {
-      lines.push('— Property Damage —');
-      if (d.propertyDamageInfo.propertyName) { lines.push('Q: What property was damaged?'); lines.push(`A: ${d.propertyDamageInfo.propertyName}`); }
-      if (d.propertyDamageInfo.address) { lines.push('Q: Property address?'); lines.push(`A: ${d.propertyDamageInfo.address}`); }
-      if (d.propertyDamageInfo.ownerName) { lines.push('Q: Property owner?'); lines.push(`A: ${d.propertyDamageInfo.ownerName}${op.number ? ', ' + phone(op) : ''}`); }
+      lines.push(`Property damaged: Yes`);
+      lines.push(`Property: ${d.propertyDamageInfo.propertyName || '—'}`);
+      lines.push(`Address: ${d.propertyDamageInfo.address || '—'}`);
+      lines.push(`Owner: ${d.propertyDamageInfo.ownerName || '—'}${op.number ? ', ' + phone(op) : ''}`);
       if (d.propertyDamageInfo.photo) lines.push('Photo of property damage attached.');
-      lines.push('');
+    } else {
+      lines.push(`Property damaged: ${yn(d.propertyDamageInfo.damaged)}`);
     }
+    lines.push('');
 
-    const photoCount = (d.photosYours || []).filter(Boolean).length + (d.photosThird || []).filter(Boolean).length;
+    const photoCountYours = (d.photosYours || []).filter(Boolean).length;
+    const photoCountThird = (d.photosThird || []).filter(Boolean).length;
     const docCount = [d.docLicense, d.docInsurance, d.docTag].filter(Boolean).length;
     const policeCount = [d.policeReport.document, d.policeReport.citationDoc].filter(Boolean).length;
-    const parts = [];
-    if (photoCount) parts.push(`${photoCount} vehicle photo${photoCount > 1 ? 's' : ''}`);
-    if (docCount) parts.push(`${docCount} third-party document${docCount > 1 ? 's' : ''}`);
-    if (policeCount) parts.push(`${policeCount} police report document${policeCount > 1 ? 's' : ''}`);
-    if (d.propertyDamageInfo.photo) parts.push('1 property damage photo');
-    if (d.sceneVideo) parts.push('1 scene video');
-    if (parts.length) {
-      lines.push('— Attachments —');
-      lines.push(parts.join(', ') + ' (see attached files on this event)');
-    }
+    lines.push('— Attachments —');
+    lines.push(`Your vehicle photos: ${photoCountYours}`);
+    if (d.answers.thirdParty) lines.push(`Third party vehicle photos: ${photoCountThird}`);
+    if (docCount) lines.push(`Third party documents: ${docCount}`);
+    if (policeCount) lines.push(`Police report documents: ${policeCount}`);
+    if (d.propertyDamageInfo.photo) lines.push('Property damage photo: 1');
+    if (d.sceneVideo) lines.push('Scene video: 1');
+    lines.push('(see attached files on this event)');
 
     return lines.join('\n');
   },
